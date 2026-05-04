@@ -1,5 +1,6 @@
 import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 
 import MainLayout from "./layouts/MainLayout";
 import Home from "./pages/Home/Home";
@@ -10,8 +11,6 @@ import Profile from "./pages/Profile/Profile";
 import OwnerDashboard from "./pages/OwnerDashboard/OwnerDashboard";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 
-
-
 const router = createBrowserRouter([
   {
     path: "",
@@ -19,17 +18,24 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: "home", element: <Home /> },
-      { path: "login", element: <Login /> },
-      { path: "register", element: <Register /> },
-      { path: "profile", element: <Profile /> },
+      {
+        path: "profile",
+        element: (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: "owner",
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["Owner"]}>
             <OwnerDashboard />
           </ProtectedRoute>
         ),
       },
+      { path: "login", element: <Login /> },
+      { path: "register", element: <Register /> },
       { path: "*", element: <Notfound /> },
     ],
   },
@@ -37,25 +43,9 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <>
-      <RouterProvider router={router}></RouterProvider>
-    </>
-    // <div className="App">
-    //   <header className="App-header">
-    //     <img src={logo} className="App-logo" alt="logo" />
-    //     <p>
-    //       Edit <code>src/App.js</code> and save to reload.
-    //     </p>
-    //     <a
-    //       className="App-link"
-    //       href="https://reactjs.org"
-    //       target="_blank"
-    //       rel="noopener noreferrer"
-    //     >
-    //       Learn React
-    //     </a>
-    //   </header>
-    // </div>
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   );
 }
 

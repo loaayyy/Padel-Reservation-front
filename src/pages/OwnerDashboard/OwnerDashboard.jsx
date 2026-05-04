@@ -3,7 +3,7 @@ import AddCourtForm from "../../features/courts/components/AddCourtForm";
 import CourtCard from "../../features/courts/components/CourtCard";
 import CourtForm from "../../features/courts/components/CourtForm";
 import useCourts from "../../features/courts/hooks/useCourts";
-import useAuth from "../../features/auth/hooks/useAuth";
+import { useAuth } from "../../context/AuthContext";
 
 export default function OwnerDashboard() {
   const { user } = useAuth();

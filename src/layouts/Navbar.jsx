@@ -1,39 +1,53 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import useAuth from "../features/auth/hooks/useAuth";
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
-  const { isOwner } = useAuth();
+  const { user, logout, isOwner } = useAuth();
 
   return (
-    <>
-      <nav style={{ padding: "16px", backgroundColor: "#111" }}>
-        <Link style={{ color: "white", marginRight: "16px" }} to="/">
-          Padel Reservation
+    <nav className="main-nav">
+      <div className="nav-left">
+        <Link className="nav-logo" to="/">
+          Padel<span>Club</span>
         </Link>
+      </div>
 
-        <Link style={{ color: "white", marginRight: "16px" }} to="/home">
-          Home
-        </Link>
-
-        {isOwner && (
-          <Link style={{ color: "white", marginRight: "16px" }} to="/owner">
-            Owner Dashboard
+      <div className="nav-center">
+        {user && (
+          <Link className="nav-link" to="/home">
+            Home
           </Link>
         )}
+      </div>
 
-        <Link style={{ color: "white", marginRight: "16px" }} to="/login">
-          Login
-        </Link>
-
-        <Link style={{ color: "white", marginRight: "16px" }} to="/register">
-          Register
-        </Link>
-
-        <Link style={{ color: "white", marginRight: "16px" }} to="/profile">
-          Profile
-        </Link>
-      </nav>
-    </>
+      <div className="nav-right">
+        {user ? (
+          <>
+            {isOwner && (
+              <Link className="nav-link" to="/owner">
+                Owner Dashboard
+              </Link>
+            )}
+            <Link className="nav-link" to="/profile">
+              Profile
+            </Link>
+            <button className="nav-logout" onClick={logout}>
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link className="nav-link" to="/login">
+              Login
+            </Link>
+            <Link className="nav-link" to="/register">
+              Register
+            </Link>
+          </>
+        )}
+      </div>
+    </nav>
   );
 }
+
