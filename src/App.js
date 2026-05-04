@@ -1,4 +1,3 @@
-import logo from "./logo.svg";
 import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
@@ -8,6 +7,8 @@ import Notfound from "./pages/Notfound/Notfound";
 import Register from "./pages/Register/Register";
 import Login from "./pages/Login/Login";
 import Profile from "./pages/Profile/Profile";
+import OwnerDashboard from "./pages/OwnerDashboard/OwnerDashboard";
+import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 
 
 
@@ -21,7 +22,15 @@ const router = createBrowserRouter([
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
       { path: "profile", element: <Profile /> },
-
+      {
+        path: "owner",
+        element: (
+          <ProtectedRoute>
+            <OwnerDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      { path: "*", element: <Notfound /> },
     ],
   },
 ]);

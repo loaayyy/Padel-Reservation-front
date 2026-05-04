@@ -1,0 +1,127 @@
+import React, { useEffect, useState } from "react";
+
+export default function CourtForm({ court, onSave, onCancel }) {
+  const [courtData, setCourtData] = useState({
+    name: "",
+    location: "",
+    pricePerHour: "",
+    surface: "",
+    description: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  useEffect(() => {
+    if (!court) return;
+    setCourtData({
+      name: court.name || "",
+      location: court.location || "",
+      pricePerHour: court.pricePerHour || "",
+      surface: court.surface || "",
+      description: court.description || "",
+    });
+  }, [court]);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setCourtData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!courtData.name || !courtData.location || !courtData.pricePerHour) {
+      setMessage("Name, location, and price are required.");
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      await onSave(court.id ?? court._id, {
+        ...courtData,
+        pricePerHour: Number(courtData.pricePerHour),
+      });
+      setMessage("Court updated successfully.");
+    } catch (error) {
+      setMessage(error?.message || "Failed to update court.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!court) {
+    return null;
+  }
+
+  return (
+    <div className="card mb-4 border-warning">
+      <div className="card-body">
+        <h5 className="card-title">Edit Court</h5>
+        {message && <div className="alert alert-info">{message}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label">Court Name</label>
+            <input
+              type="text"
+              name="name"
+              value={courtData.name}
+              onChange={handleChange}
+              className="form-control"
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Location</label>
+            <input
+              type="text"
+              name="location"
+              value={courtData.location}
+              onChange={handleChange}
+              className="form-control"
+            />
+          </div>
+          <div className="mb-3 row">
+            <div className="col-md-6">
+              <label className="form-label">Price per hour</label>
+              <input
+                type="number"
+                min="0"
+                name="pricePerHour"
+                value={courtData.pricePerHour}
+                onChange={handleChange}
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Surface</label>
+              <input
+                type="text"
+                name="surface"
+                value={courtData.surface}
+                onChange={handleChange}
+                className="form-control"
+              />
+            </div>
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Description</label>
+            <textarea
+              name="description"
+              value={courtData.description}
+              onChange={handleChange}
+              className="form-control"
+              rows="3"
+            />
+          </div>
+          <div className="d-flex gap-2">
+            <button type="submit" className="btn btn-success" disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+            <button type="button" className="btn btn-outline-secondary" onClick={onCancel}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
