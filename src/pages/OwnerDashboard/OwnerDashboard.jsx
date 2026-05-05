@@ -7,7 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 
 export default function OwnerDashboard() {
   const { user } = useAuth();
-  const { courts, loading, error, addCourt, updateCourt, deleteCourt } = useCourts(user?.id);
+  const { courts, loading, error, addCourt, updateCourt, deleteCourt } = useCourts();
   const [editingCourt, setEditingCourt] = useState(null);
 
   const handleEdit = (court) => {

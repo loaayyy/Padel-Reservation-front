@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import * as courtsApi from "../api/courtsApi";
 
-export default function useCourts(ownerId) {
+export default function useCourts() {
   const [courts, setCourts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const loadCourts = useCallback(async () => {
-    if (!ownerId) return;
     setLoading(true);
     try {
-      const data = await courtsApi.getOwnerCourts(ownerId);
+      const data = await courtsApi.getOwnerCourts();
       setCourts(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
@@ -19,7 +18,7 @@ export default function useCourts(ownerId) {
     } finally {
       setLoading(false);
     }
-  }, [ownerId]);
+  }, []);
 
   useEffect(() => {
     loadCourts();
@@ -27,7 +26,8 @@ export default function useCourts(ownerId) {
 
   const addCourt = async (courtData) => {
     const court = await courtsApi.createCourt(courtData);
-    setCourts((prev) => [...prev, court]);
+    // Refresh courts to get full data with all fields
+    await loadCourts();
     return court;
   };
 

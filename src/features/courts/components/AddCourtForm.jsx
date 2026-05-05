@@ -30,7 +30,6 @@ export default function AddCourtForm({ onAdd, ownerId }) {
     try {
       await onAdd({
         ...courtData,
-        ownerId,
         pricePerHour: Number(courtData.pricePerHour),
       });
       setCourtData(initialValues);
