@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import {useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { bookingService } from '../../features/bookings/api/bookingService';
 import { RenderTimeslots } from './BookingComponents/RenderTimeslots.jsx';
@@ -20,20 +20,24 @@ const BookingPage = () => {
   const [courtName, setCourtName] = useState('');
 
   // Map court IDs to names
-  const getCourtName = (id) => {
-    const courtMap = {
-      'court1': 'Court 1',
-      'court2': 'Court 2', 
-      'court3': 'Court 3'
-    };
-    return courtMap[id] || `Court ${id}`;
-  };
-
   useEffect(() => {
-    if (courtId) {
-      setCourtName(getCourtName(courtId));
-      fetchBookings();
-    }
+    const loadInitialData = async () => {
+      if (courtId) {
+        try {
+          // Fetch the court details properly
+          const courtData = await bookingService.getCourtById(courtId);
+
+          setCourtName(courtData?.name || courtData?.court?.name || 'Unknown Court');
+          
+          await fetchBookings();
+        } catch (err) {
+          console.error("Failed to load court info:", err);
+          setCourtName("Error loading court");
+        }
+      }
+    };
+
+    loadInitialData();
   }, [selectedDate, courtId]);
 
   const fetchBookings = async () => {
@@ -107,6 +111,7 @@ const BookingPage = () => {
     
     setSelectedDate(newDate);
     setSelectedTimes([]);
+    setBookings([]); // Clear previous day's bookings
     setError('');
   };
 
@@ -182,6 +187,7 @@ const BookingPage = () => {
     );
   }
 
+
   return (
     <div className="auth-wrapper">
       <div className="auth-card">
@@ -191,11 +197,11 @@ const BookingPage = () => {
         <p className="auth-sub">Book your perfect court</p>
 
         {error && <div className="auth-alert">{error}</div>}
-
+        
         <div className="auth-group">
           <label className="auth-label">Court</label>
           <div className="court-display">
-            {courtName || `Court ${courtId}`}
+            {courtName}
           </div>
         </div>
 
@@ -233,6 +239,7 @@ const BookingPage = () => {
               selectedTimes={selectedTimes} 
               onTimeSelect={handleTimeSelect}
               bookings={bookings}
+              selectedDate={selectedDate}
             />
           </div>
         </div>
