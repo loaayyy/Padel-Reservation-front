@@ -1,0 +1,154 @@
+/* src/pages/Home/Home.css
+   Styles specific to the Home / Explore page.
+   All colour/radius/font variables come from GlobalCSS/global.css — don't redefine them here.
+*/
+
+/* ════════════════════════════════
+   FILTER BAR
+════════════════════════════════ */
+.home-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 24px;
+}
+
+/* wrapper for icon + input */
+.home-filter-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 150px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.home-filter-field:focus-within {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(224, 123, 0, 0.1);
+}
+
+.home-filter-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* override global input styles so there's no extra border inside the field */
+.home-filter-input {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 10px 0 !important;
+  font-size: 14px;
+  color: var(--black);
+  width: 100%;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.home-filter-input::placeholder {
+  color: var(--gray-400);
+}
+
+/* ════════════════════════════════
+   RESULTS COUNT
+════════════════════════════════ */
+.home-count {
+  font-size: 13px;
+  color: var(--gray-400);
+  margin-bottom: 20px;
+}
+
+.home-count strong {
+  color: var(--black);
+  font-weight: 600;
+}
+
+/* ════════════════════════════════
+   COURT GRID
+════════════════════════════════ */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  gap: 20px;
+}
+
+/* ════════════════════════════════
+   STATE BOXES  (loading / empty)
+════════════════════════════════ */
+.home-state {
+  text-align: center;
+  padding: 72px 24px;
+  color: var(--gray-600);
+}
+
+.home-state h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.home-state p {
+  font-size: 14px;
+  color: var(--gray-400);
+}
+
+/* spinner */
+.home-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--gray-200);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: home-spin 0.7s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes home-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* error box */
+.home-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--red-light);
+  border: 1px solid rgba(140, 31, 31, 0.2);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  color: var(--red-dark);
+  font-size: 14px;
+}
+
+.home-error p {
+  margin: 0;
+}
+
+/* ════════════════════════════════
+   RESPONSIVE
+════════════════════════════════ */
+@media (max-width: 680px) {
+  .home-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-filter-field {
+    flex: 1 1 100%;
+  }
+
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
+}
