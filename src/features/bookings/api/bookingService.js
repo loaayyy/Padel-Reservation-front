@@ -4,7 +4,6 @@ const API_BASE_URL = 'http://localhost:5000';
 
 const getAuthHeaders = () => {
   const userStr = localStorage.getItem("padel-user");
-  console.log("User String from Storage:", userStr); // Debugging line
 
   if (!userStr) return { "Content-Type": "application/json" };
 
@@ -30,16 +29,17 @@ const getAuthHeaders = () => {
 export const bookingService = {
   // Get bookings by date and courtId
   getBookingsByDate: async (date, courtId) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/bookings`, {
-        params: { date, courtId }
-      , headers: getAuthHeaders() });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching bookings by date:', error);
-      throw error;
-    }
-  },
+  try {
+    const response = await axios.get(`${API_BASE_URL}/bookings/date`, { 
+      params: { date, courtId },
+      headers: getAuthHeaders() 
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching bookings by date:', error);
+    throw error;
+  }
+},
 
   // Create a new booking
   createBooking: async (bookingData) => {
