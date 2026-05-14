@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getCourtById } from "../../features/courts/api/courtsApi";
 import "./CourtDetails.css";
-
+//import payment from '../../components/payment/payment';
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=1200&q=80";
 
 function Stars({ rating = 0, size = "md" }) {
