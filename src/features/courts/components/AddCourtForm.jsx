@@ -95,17 +95,6 @@ export default function AddCourtForm({ onAdd, ownerId }) {
             </div>
           </div>
           <div className="mb-3">
-            <label className="form-label">Main Image</label>
-            <textarea
-              name="description"
-              value={courtData.description}
-              onChange={handleChange}
-              className="form-control"
-              rows="3"
-              placeholder="Optional court details"
-            />
-          </div>
-          <div className="mb-3">
             <label className="form-label">Description</label>
             <textarea
               name="description"
