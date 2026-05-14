@@ -12,7 +12,6 @@ import Profile from "./pages/Profile/Profile";
 import OwnerDashboard from "./pages/OwnerDashboard/OwnerDashboard";
 import Explore from "./pages/Explore";
 import CourtDetails from "./pages/CourtDetails/CourtDetails"; 
-
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 
 const router = createBrowserRouter([
