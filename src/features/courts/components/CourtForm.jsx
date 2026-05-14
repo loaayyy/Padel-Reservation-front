@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
 
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
 export default function CourtForm({ court, onSave, onCancel }) {
   const [courtData, setCourtData] = useState({
     name: "",
@@ -7,6 +15,10 @@ export default function CourtForm({ court, onSave, onCancel }) {
     pricePerHour: "",
     surface: "",
     description: "",
+    imageUrl: "",
+    secondaryImages: [],
+    imageFile: null,
+    secondaryFiles: [],
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -19,12 +31,28 @@ export default function CourtForm({ court, onSave, onCancel }) {
       pricePerHour: court.pricePerHour || "",
       surface: court.surface || "",
       description: court.description || "",
+      imageUrl: court.imageUrl || "",
+      secondaryImages: Array.isArray(court.secondaryImages)
+        ? court.secondaryImages
+        : (court.secondaryImages || []),
+      imageFile: null,
+      secondaryFiles: [],
     });
   }, [court]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setCourtData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    setCourtData((prev) => ({ ...prev, imageFile: file }));
+  };
+
+  const handleSecondaryFilesChange = (event) => {
+    const files = Array.from(event.target.files || []);
+    setCourtData((prev) => ({ ...prev, secondaryFiles: files }));
   };
 
   const handleSubmit = async (event) => {
@@ -37,9 +65,18 @@ export default function CourtForm({ court, onSave, onCancel }) {
     setSaving(true);
     setMessage(null);
     try {
+      const imageUrl = courtData.imageFile
+        ? await fileToDataUrl(courtData.imageFile)
+        : courtData.imageUrl;
+      const secondaryImages = courtData.secondaryFiles.length > 0
+        ? await Promise.all(courtData.secondaryFiles.map(fileToDataUrl))
+        : courtData.secondaryImages;
+
       await onSave(court.id ?? court._id, {
         ...courtData,
         pricePerHour: Number(courtData.pricePerHour),
+        imageUrl,
+        secondaryImages,
       });
       setMessage("Court updated successfully.");
     } catch (error) {
@@ -111,6 +148,35 @@ export default function CourtForm({ court, onSave, onCancel }) {
               className="form-control"
               rows="3"
             />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Main Court Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="form-control"
+            />
+            {courtData.imageFile ? (
+              <small className="text-muted">Selected file: {courtData.imageFile.name}</small>
+            ) : courtData.imageUrl ? (
+              <small className="text-muted">Current image already set.</small>
+            ) : null}
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Secondary Images</label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleSecondaryFilesChange}
+              className="form-control"
+            />
+            {courtData.secondaryFiles.length > 0 ? (
+              <small className="text-muted">{courtData.secondaryFiles.length} file(s) selected</small>
+            ) : (courtData.secondaryImages?.length > 0 ? (
+              <small className="text-muted">{courtData.secondaryImages.length} existing image(s) retained</small>
+            ) : null)}
           </div>
           <div className="d-flex gap-2">
             <button type="submit" className="btn btn-success" disabled={saving}>

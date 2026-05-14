@@ -6,7 +6,19 @@ const initialValues = {
   pricePerHour: "",
   surface: "",
   description: "",
+  imageUrl: "",
+  secondaryImages: [],
+  imageFile: null,
+  secondaryFiles: [],
 };
+
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 export default function AddCourtForm({ onAdd, ownerId }) {
   const [courtData, setCourtData] = useState(initialValues);
@@ -18,6 +30,16 @@ export default function AddCourtForm({ onAdd, ownerId }) {
     setCourtData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    setCourtData((prev) => ({ ...prev, imageFile: file }));
+  };
+
+  const handleSecondaryFilesChange = (event) => {
+    const files = Array.from(event.target.files || []);
+    setCourtData((prev) => ({ ...prev, secondaryFiles: files }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!courtData.name || !courtData.location || !courtData.pricePerHour) {
@@ -27,10 +49,20 @@ export default function AddCourtForm({ onAdd, ownerId }) {
 
     setSaving(true);
     setMessage(null);
+
     try {
+      const imageUrl = courtData.imageFile
+        ? await fileToDataUrl(courtData.imageFile)
+        : courtData.imageUrl;
+      const secondaryImages = courtData.secondaryFiles.length > 0
+        ? await Promise.all(courtData.secondaryFiles.map(fileToDataUrl))
+        : courtData.secondaryImages;
+
       await onAdd({
         ...courtData,
         pricePerHour: Number(courtData.pricePerHour),
+        imageUrl,
+        secondaryImages,
       });
       setCourtData(initialValues);
       setMessage("Court added successfully.");
@@ -104,6 +136,33 @@ export default function AddCourtForm({ onAdd, ownerId }) {
               rows="3"
               placeholder="Optional court details"
             />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Main Court Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="form-control"
+            />
+            {courtData.imageFile && (
+              <small className="text-muted">Selected file: {courtData.imageFile.name}</small>
+            )}
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Secondary Images</label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleSecondaryFilesChange}
+              className="form-control"
+            />
+            {courtData.secondaryFiles.length > 0 && (
+              <small className="text-muted">
+                {courtData.secondaryFiles.length} file(s) selected
+              </small>
+            )}
           </div>
           <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? "Saving..." : "Add Court"}
