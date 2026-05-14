@@ -130,6 +130,9 @@ export default function CourtDetails() {
   if (!court) return <div className="cd-error">No court found</div>;
 
   const heroImage = court.imageUrl && court.imageUrl.trim() !== "" ? court.imageUrl : DEFAULT_IMAGE;
+  const secondaryImages = Array.isArray(court.secondaryImages)
+    ? court.secondaryImages.filter((img) => img && img.trim() !== "")
+    : [];
   const reviews = court.reviews || [];
 
   const amenities = [
@@ -175,6 +178,14 @@ export default function CourtDetails() {
           </div>
         </div>
       </div>
+
+      {secondaryImages.length > 0 && (
+        <div className="cd-secondary-gallery">
+          {secondaryImages.map((src, index) => (
+            <div key={index} className="cd-secondary-image" style={{ backgroundImage: `url(${src})` }} />
+          ))}
+        </div>
+      )}
 
       {/* BODY */}
       <div className="cd-body">

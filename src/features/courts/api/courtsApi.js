@@ -4,14 +4,29 @@ const API_BASE = "http://localhost:5000";
 
 // ─── Auth headers ─────────────────────────
 const getAuthHeaders = () => {
-  const user = localStorage.getItem("padel-user");
-  const token = user ? JSON.parse(user).token : null;
+  const userStr = localStorage.getItem("padel-user");
 
-  return {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-  };
+  if (!userStr) return { "Content-Type": "application/json" };
+
+  try {
+    const user = JSON.parse(userStr);
+    const token = user.token || user.data?.token; // Try both common paths
+    
+    if (!token) {
+      console.error("Token not found in user object");
+      return { "Content-Type": "application/json" };
+    }
+
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    };
+  } catch (err) {
+    console.error("Error parsing user from localStorage", err);
+    return { "Content-Type": "application/json" };
+  }
 };
+
 
 // ─── PUBLIC COURTS ─────────────────────────
 

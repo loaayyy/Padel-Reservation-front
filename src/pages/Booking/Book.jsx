@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import {useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { bookingService } from '../../features/bookings/api/bookingService';
 import { RenderTimeslots } from './BookingComponents/RenderTimeslots.jsx';
@@ -11,7 +11,11 @@ const TIMES = ['12:00 AM', '1:00 AM', '2:00 AM', '3:00 AM', '4:00 AM', '5:00 AM'
 const BookingPage = () => {
   const { courtId } = useParams();
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [isBookingConfirmed, setIsBookingConfirmed] = useState(false);
@@ -20,74 +24,116 @@ const BookingPage = () => {
   const [courtName, setCourtName] = useState('');
 
   // Map court IDs to names
-  const getCourtName = (id) => {
-    const courtMap = {
-      'court1': 'Court 1',
-      'court2': 'Court 2', 
-      'court3': 'Court 3'
-    };
-    return courtMap[id] || `Court ${id}`;
-  };
-
   useEffect(() => {
-    if (courtId) {
-      setCourtName(getCourtName(courtId));
-      fetchBookings();
-    }
+    const loadInitialData = async () => {
+      if (courtId) {
+        try {
+          // Fetch the court details properly
+          const courtData = await bookingService.getCourtById(courtId);
+
+          setCourtName(courtData?.name || courtData?.court?.name || 'Unknown Court');
+          
+          await fetchBookings();
+        } catch (err) {
+          console.error("Failed to load court info:", err);
+          setCourtName("Error loading court");
+        }
+      }
+    };
+
+    loadInitialData();
   }, [selectedDate, courtId]);
 
   const fetchBookings = async () => {
     try {
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      const bookingsData = await bookingService.getBookingsByDate(dateStr, courtId);
+      // Use local date components instead of toISOString() to avoid timezone shift
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      let bookingsData = await bookingService.getBookingsByDate(dateStr, courtId);
+      
+      // Handle different response formats
+      if (bookingsData && bookingsData.data) {
+        bookingsData = bookingsData.data;
+      }
+      if (!Array.isArray(bookingsData)) {
+        bookingsData = [];
+      }
+      
+      console.log('FETCH BOOKINGS:', { dateStr, courtId, bookingsData, count: bookingsData.length });
       setBookings(bookingsData);
     } catch (error) {
       console.error('Error fetching bookings:', error);
+      setBookings([]);
     }
   };
 
-  const handleTimeSelect = (time) => {
-    const timeIndex = TIMES.indexOf(time);
-    
-    // Check if this time slot is already booked
-    const isBooked = bookings.some(booking => {
-      const [hours, minutes, period] = time.match(/(\d+):(\d+)\s(AM|PM)/).slice(1);
-      let hour = parseInt(hours);
-      if (period === 'PM' && hour !== 12) hour += 12;
-      if (period === 'AM' && hour === 12) hour = 0;
+  const getTimeIndex = (time) => TIMES.indexOf(time);
+  const getSortedTimes = (times) => [...times].sort((a, b) => getTimeIndex(a) - getTimeIndex(b));
 
-      const bookingStart = new Date(booking.startTime);
-      const bookingEnd = new Date(booking.endTime);
-      const slotStart = new Date(selectedDate);
-      slotStart.setHours(hour, parseInt(minutes), 0, 0);
-      const slotEnd = new Date(slotStart);
-      slotEnd.setHours(slotStart.getHours() + 1);
+  const isTimeBooked = (time) => {
+    const [hours, minutes, period] = time.match(/(\d+):(\d+)\s(AM|PM)/).slice(1);
+    let hour = parseInt(hours);
+    if (period === 'PM' && hour !== 12) hour += 12;
+    if (period === 'AM' && hour === 12) hour = 0;
 
-      return (
-        (bookingStart < slotEnd && bookingEnd > slotStart) ||
-        (slotStart < bookingEnd && slotEnd > bookingStart)
-      );
+    const slotStart = new Date(selectedDate);
+    slotStart.setHours(hour, parseInt(minutes), 0, 0);
+    const slotEnd = new Date(slotStart);
+    slotEnd.setHours(slotStart.getHours() + 1);
+
+    return bookings.some(booking => {
+      // Handle different property names
+      const startTimeStr = booking.startTime || booking.start_time || booking.start;
+      const endTimeStr = booking.endTime || booking.end_time || booking.end;
+      
+      if (!startTimeStr || !endTimeStr) {
+        console.warn('Booking missing time properties:', booking);
+        return false;
+      }
+      
+      const bookingStart = new Date(startTimeStr);
+      const bookingEnd = new Date(endTimeStr);
+      
+      console.log('CHECKING SLOT:', { time, slotStart: slotStart.toISOString(), slotEnd: slotEnd.toISOString(), bookingStart: bookingStart.toISOString(), bookingEnd: bookingEnd.toISOString() });
+      
+      return bookingStart < slotEnd && bookingEnd > slotStart;
     });
+  };
 
-    if (isBooked) return; // Don't select booked slots
+  const handleTimeSelect = (time) => {
+    if (isTimeBooked(time)) return;
 
     setSelectedTimes(prevTimes => {
+      const sortedTimes = getSortedTimes(prevTimes);
+      const timeIndex = getTimeIndex(time);
+      const currentStartIndex = sortedTimes.length ? getTimeIndex(sortedTimes[0]) : null;
+      const currentEndIndex = sortedTimes.length ? getTimeIndex(sortedTimes[sortedTimes.length - 1]) : null;
+
       if (prevTimes.length === 0) {
-        // First selection
         return [time];
       }
 
-      const lastSelectedIndex = TIMES.indexOf(prevTimes[prevTimes.length - 1]);
-      
-      if (timeIndex === lastSelectedIndex + 1) {
-        // Contiguous selection - add to existing selection
-        return [...prevTimes, time];
-      } else {
-        // Non-contiguous selection - start new selection
+      if (prevTimes.includes(time)) {
+        // If user clicks an already selected boundary slot, shrink the range.
+        if (timeIndex === currentStartIndex) return sortedTimes.slice(1);
+        if (timeIndex === currentEndIndex) return sortedTimes.slice(0, -1);
         return [time];
       }
+
+      if (timeIndex === currentStartIndex - 1) {
+        return [time, ...sortedTimes];
+      }
+
+      if (timeIndex === currentEndIndex + 1) {
+        return [...sortedTimes, time];
+      }
+
+      return [time];
     });
-    
+
     setError('');
   };
 
@@ -107,6 +153,7 @@ const BookingPage = () => {
     
     setSelectedDate(newDate);
     setSelectedTimes([]);
+    setBookings([]); // Clear previous day's bookings
     setError('');
   };
 
@@ -120,9 +167,9 @@ const BookingPage = () => {
     setError('');
 
     try {
-      // Get the first and last selected times to calculate booking duration
-      const firstTime = selectedTimes[0];
-      const lastTime = selectedTimes[selectedTimes.length - 1];
+      const sortedTimes = getSortedTimes(selectedTimes);
+      const firstTime = sortedTimes[0];
+      const lastTime = sortedTimes[sortedTimes.length - 1];
       
       const [startHours, startMinutes, startPeriod] = firstTime.match(/(\d+):(\d+)\s(AM|PM)/).slice(1);
       const [endHours, endMinutes, endPeriod] = lastTime.match(/(\d+):(\d+)\s(AM|PM)/).slice(1);
@@ -182,6 +229,7 @@ const BookingPage = () => {
     );
   }
 
+
   return (
     <div className="auth-wrapper">
       <div className="auth-card">
@@ -191,11 +239,11 @@ const BookingPage = () => {
         <p className="auth-sub">Book your perfect court</p>
 
         {error && <div className="auth-alert">{error}</div>}
-
+        
         <div className="auth-group">
           <label className="auth-label">Court</label>
           <div className="court-display">
-            {courtName || `Court ${courtId}`}
+            {courtName}
           </div>
         </div>
 
@@ -233,6 +281,7 @@ const BookingPage = () => {
               selectedTimes={selectedTimes} 
               onTimeSelect={handleTimeSelect}
               bookings={bookings}
+              selectedDate={selectedDate}
             />
           </div>
         </div>

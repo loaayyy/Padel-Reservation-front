@@ -10,6 +10,8 @@ import Register from "./pages/Register/Register";
 import Login from "./pages/Login/Login";
 import Profile from "./pages/Profile/Profile";
 import OwnerDashboard from "./pages/OwnerDashboard/OwnerDashboard";
+import AddCourtPage from "./pages/OwnerDashboard/AddCourtPage";
+import EditCourtPage from "./pages/OwnerDashboard/EditCourtPage";
 import Explore from "./pages/Explore";
 import CourtDetails from "./pages/CourtDetails/CourtDetails"; 
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
@@ -56,6 +58,22 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={["Owner"]}>
             <OwnerDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "owner/add-court",
+        element: (
+          <ProtectedRoute allowedRoles={["Owner"]}>
+            <AddCourtPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "owner/edit-court/:courtId",
+        element: (
+          <ProtectedRoute allowedRoles={["Owner"]}>
+            <EditCourtPage />
           </ProtectedRoute>
         ),
       },

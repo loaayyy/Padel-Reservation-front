@@ -69,6 +69,26 @@
   background-position: center;
   background-color: var(--orange-dark);
 }
+.cd-secondary-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px auto 0;
+  max-width: 1200px;
+  padding: 0 24px;
+}
+.cd-secondary-image {
+  width: 100%;
+  min-height: 120px;
+  background-size: cover;
+  background-position: center;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+.cd-secondary-gallery div:first-child {
+  min-height: 180px;
+}
 .cd-hero__overlay {
   position: absolute;
   inset: 0;
