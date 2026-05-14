@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getCourtById } from "../../features/courts/api/courtsApi";
+import { bookingService } from '../../features/bookings/api/bookingService';
+import { useAuth } from '../../context/AuthContext';
+import PaymentModal from '../../components/payment';
 import "./CourtDetails.css";
-//import payment from '../../components/payment/payment';
+
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=1200&q=80";
 
 function Stars({ rating = 0, size = "md" }) {
@@ -54,12 +57,16 @@ function ReviewCard({ review }) {
 export default function CourtDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [court, setCourt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [showPayment, setShowPayment] = useState(false);
 
   useEffect(() => {
     const fetchCourt = async () => {
@@ -81,10 +88,36 @@ export default function CourtDetails() {
     "15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00",
   ];
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!selectedDate || !selectedTime) return;
-    setBookingSuccess(true);
-    setTimeout(() => setBookingSuccess(false), 3000);
+
+    setBookingLoading(true);
+    setBookingError("");
+
+    try {
+      const startTime = new Date(`${selectedDate}T${selectedTime}:00`);
+      const endTime = new Date(`${selectedDate}T${selectedTime}:00`);
+      endTime.setHours(endTime.getHours() + 1);
+
+      await bookingService.createBooking({
+        courtId: id,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        totalPrice: court.pricePerHour,
+      });
+
+      setBookingSuccess(true);
+      setTimeout(() => setBookingSuccess(false), 3000);
+    } catch (err) {
+      setBookingError(err.response?.data?.message || "Booking failed. Please try again.");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayment(false);
+    handleBooking();
   };
 
   if (loading) return (
@@ -110,6 +143,21 @@ export default function CourtDetails() {
 
   return (
     <div className="cd-page">
+
+      {/* PAYMENT MODAL */}
+      {showPayment && (
+        <PaymentModal
+          amount={court.pricePerHour}
+          courtName={court.name}
+          date={new Date(selectedDate).toLocaleDateString("en-EG", {
+            weekday: "short", day: "numeric", month: "short"
+          })}
+          time={`${selectedTime} – ${String(Number(selectedTime.split(":")[0]) + 1).padStart(2, "0")}:00`}
+          onSuccess={handlePaymentSuccess}
+          onClose={() => setShowPayment(false)}
+        />
+      )}
+
       {/* HERO */}
       <div className="cd-hero">
         <div className="cd-hero__image" style={{ backgroundImage: `url(${heroImage})` }}>
@@ -133,7 +181,6 @@ export default function CourtDetails() {
         <div className="cd-grid">
           {/* LEFT */}
           <div className="cd-left">
-            {/* Stats */}
             <div className="cd-stats">
               <div className="cd-stat">
                 <span className="cd-stat__icon">💰</span>
@@ -165,7 +212,6 @@ export default function CourtDetails() {
               </div>
             </div>
 
-            {/* About */}
             <div className="cd-section">
               <h2 className="cd-section__title">About this Court</h2>
               <p className="cd-section__text">
@@ -173,7 +219,6 @@ export default function CourtDetails() {
               </p>
             </div>
 
-            {/* Amenities */}
             <div className="cd-section">
               <h2 className="cd-section__title">Amenities</h2>
               <div className="cd-amenities">
@@ -181,7 +226,6 @@ export default function CourtDetails() {
               </div>
             </div>
 
-            {/* Location */}
             <div className="cd-section">
               <h2 className="cd-section__title">Location</h2>
               <div className="cd-location-box">
@@ -193,7 +237,6 @@ export default function CourtDetails() {
               </div>
             </div>
 
-            {/* Reviews */}
             <div className="cd-section">
               <h2 className="cd-section__title">
                 Reviews
@@ -265,12 +308,18 @@ export default function CourtDetails() {
                   </div>
                 )}
 
+                {bookingError && (
+                  <p style={{ color: "red", fontSize: "0.85rem", marginBottom: "8px" }}>
+                    {bookingError}
+                  </p>
+                )}
+
                 <button
                   className={`cd-book-btn ${!selectedDate || !selectedTime ? "cd-book-btn--disabled" : ""}`}
-                  onClick={handleBooking}
-                  disabled={!selectedDate || !selectedTime}
+                  onClick={() => setShowPayment(true)}
+                  disabled={!selectedDate || !selectedTime || bookingLoading}
                 >
-                  {bookingSuccess ? "✅ Booking Confirmed!" : "Book Now"}
+                  {bookingLoading ? "Booking..." : bookingSuccess ? "✅ Booking Confirmed!" : "Book Now"}
                 </button>
 
                 {(!selectedDate || !selectedTime) && (
