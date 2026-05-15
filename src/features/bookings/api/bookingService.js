@@ -1,131 +1,228 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000';
+
 const getAuthHeaders = () => {
   const userStr = localStorage.getItem("padel-user");
 
-  if (!userStr) return { "Content-Type": "application/json" };
+  if (!userStr) {
+    console.error("No user found in localStorage");
+
+    return {
+      "Content-Type": "application/json"
+    };
+  }
 
   try {
     const user = JSON.parse(userStr);
-    const token = user.token || user.data?.token; // Try both common paths
-    
+
+    console.log("USER FROM STORAGE:", user);
+
+    const token = user.token || user.data?.token;
+
     if (!token) {
       console.error("Token not found in user object");
-      return { "Content-Type": "application/json" };
+
+      return {
+        "Content-Type": "application/json"
+      };
     }
 
     return {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     };
-  } catch (err) {
-    console.error("Error parsing user from localStorage", err);
-    return { "Content-Type": "application/json" };
-  }
 
+  } catch (err) {
+
+    console.error("Error parsing user from localStorage", err);
+
+    return {
+      "Content-Type": "application/json"
+    };
+  }
 };
 
 export const bookingService = {
-  // Get bookings by date and courtId
+
+  // =========================
+  // GET BOOKINGS BY DATE
+  // =========================
   getBookingsByDate: async (date, courtId) => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/bookings/date`, { 
-      params: { date, courtId },
-      headers: getAuthHeaders() 
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching bookings by date:', error);
-    throw error;
-  }
-},
+    try {
 
+      const response = await axios.get(
+        `${API_BASE_URL}/bookings/date`,
+        {
+          params: { date, courtId },
+          headers: getAuthHeaders()
+        }
+      );
 
-  // Create a new booking
+      return response.data;
+
+    } catch (error) {
+
+      console.log("FULL ERROR:", error.response);
+      console.log("ERROR DATA:", error.response?.data);
+      console.log("ERROR MESSAGE:", error.response?.data?.message);
+
+      throw error;
+    }
+  },
+
+  // =========================
+  // CREATE BOOKING
+  // =========================
   createBooking: async (bookingData) => {
     try {
 
-      const response = await axios.post(`${API_BASE_URL}/bookings`, bookingData, {
-        headers: getAuthHeaders()
-      });
+      console.log("BOOKING DATA SENT:", bookingData);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/bookings`,
+        bookingData,
+        {
+          headers: getAuthHeaders()
+        }
+      );
+
+      console.log("BOOKING SUCCESS:", response.data);
 
       return response.data;
+
     } catch (error) {
-      console.error('Error creating booking:', error);
+
+      console.log("FULL ERROR:", error.response);
+      console.log("ERROR DATA:", error.response?.data);
+      console.log("ERROR MESSAGE:", error.response?.data?.message);
+
       throw error;
     }
   },
 
-  // Get all bookings for authenticated user
+  // =========================
+  // GET ALL BOOKINGS
+  // =========================
   getAllBookings: async () => {
     try {
 
-      const response = await axios.get(`${API_BASE_URL}/bookings`, {
-        headers: getAuthHeaders()
-      });
+      const response = await axios.get(
+        `${API_BASE_URL}/bookings`,
+        {
+          headers: getAuthHeaders()
+        }
+      );
 
       return response.data;
+
     } catch (error) {
-      console.error('Error fetching all bookings:', error);
+
+      console.log("FULL ERROR:", error.response);
+      console.log("ERROR DATA:", error.response?.data);
+      console.log("ERROR MESSAGE:", error.response?.data?.message);
+
       throw error;
     }
   },
 
-  // Get booking by ID
+  // =========================
+  // GET BOOKING BY ID
+  // =========================
   getBookingById: async (bookingId) => {
     try {
 
-      const response = await axios.get(`${API_BASE_URL}/bookings/${bookingId}`, {
-        headers: getAuthHeaders()
-      });
+      const response = await axios.get(
+        `${API_BASE_URL}/bookings/${bookingId}`,
+        {
+          headers: getAuthHeaders()
+        }
+      );
 
       return response.data;
+
     } catch (error) {
-      console.error('Error fetching booking by ID:', error);
+
+      console.log("FULL ERROR:", error.response);
+      console.log("ERROR DATA:", error.response?.data);
+      console.log("ERROR MESSAGE:", error.response?.data?.message);
+
       throw error;
     }
   },
 
-  // Cancel booking
+  // =========================
+  // CANCEL BOOKING
+  // =========================
   cancelBooking: async (bookingId) => {
     try {
 
-    const response = await axios.delete(`${API_BASE_URL}/bookings/${bookingId}`, {
-  headers: getAuthHeaders()
-});
+      const response = await axios.delete(
+        `${API_BASE_URL}/bookings/${bookingId}`,
+        {
+          headers: getAuthHeaders()
+        }
+      );
 
       return response.data;
+
     } catch (error) {
-      console.error('Error cancelling booking:', error);
+
+      console.log("FULL ERROR:", error.response);
+      console.log("ERROR DATA:", error.response?.data);
+      console.log("ERROR MESSAGE:", error.response?.data?.message);
+
       throw error;
     }
   },
 
-  // Update booking
+  // =========================
+  // UPDATE BOOKING
+  // =========================
   updateBooking: async (bookingId, bookingData) => {
     try {
 
-      const response = await axios.put(`${API_BASE_URL}/bookings/${bookingId}`, bookingData, {
-        headers: getAuthHeaders()
-      });
+      const response = await axios.put(
+        `${API_BASE_URL}/bookings/${bookingId}`,
+        bookingData,
+        {
+          headers: getAuthHeaders()
+        }
+      );
 
       return response.data;
+
     } catch (error) {
-      console.error('Error updating booking:', error);
+
+      console.log("FULL ERROR:", error.response);
+      console.log("ERROR DATA:", error.response?.data);
+      console.log("ERROR MESSAGE:", error.response?.data?.message);
+
       throw error;
     }
   },
 
-  // get court by id
+  // =========================
+  // GET COURT BY ID
+  // =========================
   getCourtById: async (courtId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/owner/courts/${courtId}`, {
-        headers: getAuthHeaders()
-      });
+
+      const response = await axios.get(
+        `${API_BASE_URL}/courts/${courtId}`,
+        {
+          headers: getAuthHeaders()
+        }
+      );
+
       return response.data;
+
     } catch (error) {
-      console.error('Error fetching court by ID:', error);
+
+      console.log("FULL ERROR:", error.response);
+      console.log("ERROR DATA:", error.response?.data);
+      console.log("ERROR MESSAGE:", error.response?.data?.message);
+
       throw error;
     }
   }
