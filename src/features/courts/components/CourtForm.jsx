@@ -72,12 +72,17 @@ export default function CourtForm({ court, onSave, onCancel }) {
         ? await Promise.all(courtData.secondaryFiles.map(fileToDataUrl))
         : courtData.secondaryImages;
 
-      await onSave(court.id ?? court._id, {
-        ...courtData,
+      const payload = {
+        name: courtData.name,
+        location: courtData.location,
         pricePerHour: Number(courtData.pricePerHour),
+        surface: courtData.surface,
+        description: courtData.description,
         imageUrl,
         secondaryImages,
-      });
+      };
+
+      await onSave(court.id ?? court._id, payload);
       setMessage("Court updated successfully.");
     } catch (error) {
       setMessage(error?.message || "Failed to update court.");
