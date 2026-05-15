@@ -13,8 +13,9 @@ import OwnerDashboard from "./pages/OwnerDashboard/OwnerDashboard";
 import AddCourtPage from "./pages/OwnerDashboard/AddCourtPage";
 import EditCourtPage from "./pages/OwnerDashboard/EditCourtPage";
 import Explore from "./pages/Explore";
-import CourtDetails from "./pages/CourtDetails/CourtDetails"; 
+import CourtDetails from "./pages/CourtDetails/CourtDetails";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
+import MyBookings from "./pages/MyBookings";
 
 const router = createBrowserRouter([
   {
@@ -24,13 +25,19 @@ const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: "home", element: <Home /> },
 
-      
+      {
+        path: "bookings",
+        element: (
+          <ProtectedRoute>
+            <MyBookings />
+          </ProtectedRoute>
+        ),
+      },
+
       { path: "explore", element: <Explore /> },
 
-      
       { path: "courts/:id", element: <CourtDetails /> },
 
-     
       {
         path: "book/:courtId",
         element: (
@@ -40,7 +47,6 @@ const router = createBrowserRouter([
         ),
       },
 
-      
       {
         path: "profile",
         element: (
@@ -50,9 +56,7 @@ const router = createBrowserRouter([
         ),
       },
 
-      // =========================
-      // Owner Dashboard (Protected)
-      // =========================
+      // Owner Dashboard
       {
         path: "owner",
         element: (
@@ -78,15 +82,11 @@ const router = createBrowserRouter([
         ),
       },
 
-      // =========================
-      // Auth Pages
-      // =========================
+      // Auth
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
 
-      // =========================
       // 404
-      // =========================
       { path: "*", element: <Notfound /> },
     ],
   },

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import CourtCard from "../../components/CourtCard";
 import { getPublicCourts } from "../../features/courts/api/courtsApi";
+import { useAuth } from "../../context/AuthContext";
 import "./Home.css";
 
 export default function Home() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [courts, setCourts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,12 +83,25 @@ export default function Home() {
             Browse top-rated padel courts across Cairo and book your session instantly.
           </p>
           <div className="home-hero__actions">
-            <button className="home-hero__cta" onClick={() => navigate("/register")}>
-              Get Started
-              <span className="home-hero__cta-arrow">→</span>
-            </button>
-            <button className="home-hero__secondary" onClick={() => document.getElementById('courts').scrollIntoView({ behavior: 'smooth' })}>
-              Browse Courts
+            {user ? (
+              <button
+                className="home-hero__cta"
+                onClick={() => navigate(user.role === "Owner" ? "/owner" : "/explore")}
+              >
+                {user.role === "Owner" ? "My Dashboard" : "Browse Courts"}
+                <span className="home-hero__cta-arrow">→</span>
+              </button>
+            ) : (
+              <button className="home-hero__cta" onClick={() => navigate("/register")}>
+                Get Started
+                <span className="home-hero__cta-arrow">→</span>
+              </button>
+            )}
+            <button
+              className="home-hero__secondary"
+              onClick={() => document.getElementById('courts').scrollIntoView({ behavior: 'smooth' })}
+            >
+              Explore Below ↓
             </button>
           </div>
           <div className="home-hero__stats">

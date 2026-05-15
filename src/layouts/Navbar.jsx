@@ -1,6 +1,6 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
   const { user, logout, isOwner } = useAuth();
@@ -29,9 +29,17 @@ export default function Navbar() {
                 Owner Dashboard
               </Link>
             )}
-            <Link className="nav-link" to="/profile">
+
+            {/* Profile Settings → /profile?tab=settings */}
+            <Link className="nav-link" to="/profile?tab=settings">
               Profile
             </Link>
+
+            {/* My Bookings → /profile?tab=bookings */}
+            <Link className="nav-link" to="/profile?tab=bookings">
+              My Bookings
+            </Link>
+
             <button className="nav-logout" onClick={logout}>
               Logout
             </button>
@@ -50,4 +58,3 @@ export default function Navbar() {
     </nav>
   );
 }
-

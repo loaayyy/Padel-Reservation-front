@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000';
-
 const getAuthHeaders = () => {
   const userStr = localStorage.getItem("padel-user");
 
@@ -24,6 +23,7 @@ const getAuthHeaders = () => {
     console.error("Error parsing user from localStorage", err);
     return { "Content-Type": "application/json" };
   }
+
 };
 
 export const bookingService = {
@@ -41,12 +41,15 @@ export const bookingService = {
   }
 },
 
+
   // Create a new booking
   createBooking: async (bookingData) => {
     try {
+
       const response = await axios.post(`${API_BASE_URL}/bookings`, bookingData, {
         headers: getAuthHeaders()
       });
+
       return response.data;
     } catch (error) {
       console.error('Error creating booking:', error);
@@ -57,9 +60,11 @@ export const bookingService = {
   // Get all bookings for authenticated user
   getAllBookings: async () => {
     try {
+
       const response = await axios.get(`${API_BASE_URL}/bookings`, {
         headers: getAuthHeaders()
       });
+
       return response.data;
     } catch (error) {
       console.error('Error fetching all bookings:', error);
@@ -70,9 +75,11 @@ export const bookingService = {
   // Get booking by ID
   getBookingById: async (bookingId) => {
     try {
+
       const response = await axios.get(`${API_BASE_URL}/bookings/${bookingId}`, {
         headers: getAuthHeaders()
       });
+
       return response.data;
     } catch (error) {
       console.error('Error fetching booking by ID:', error);
@@ -83,9 +90,11 @@ export const bookingService = {
   // Cancel booking
   cancelBooking: async (bookingId) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/bookings/${bookingId}/cancel`, {}, {
-        headers: getAuthHeaders()
-      });
+
+    const response = await axios.delete(`${API_BASE_URL}/bookings/${bookingId}`, {
+  headers: getAuthHeaders()
+});
+
       return response.data;
     } catch (error) {
       console.error('Error cancelling booking:', error);
@@ -96,9 +105,11 @@ export const bookingService = {
   // Update booking
   updateBooking: async (bookingId, bookingData) => {
     try {
+
       const response = await axios.put(`${API_BASE_URL}/bookings/${bookingId}`, bookingData, {
         headers: getAuthHeaders()
       });
+
       return response.data;
     } catch (error) {
       console.error('Error updating booking:', error);
