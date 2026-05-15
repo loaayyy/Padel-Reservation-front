@@ -4,7 +4,6 @@ const initialValues = {
   name: "",
   location: "",
   pricePerHour: "",
-  surface: "",
   description: "",
   imageUrl: "",
   secondaryImages: [],
@@ -58,16 +57,23 @@ export default function AddCourtForm({ onAdd, ownerId }) {
         ? await Promise.all(courtData.secondaryFiles.map(fileToDataUrl))
         : courtData.secondaryImages;
 
-      await onAdd({
-        ...courtData,
+      const payload = {
+        name: courtData.name,
+        location: courtData.location,
         pricePerHour: Number(courtData.pricePerHour),
+        description: courtData.description,
         imageUrl,
         secondaryImages,
-      });
+      };
+
+      await onAdd(payload);
       setCourtData(initialValues);
       setMessage("Court added successfully.");
     } catch (error) {
-      setMessage(error?.message || "Failed to add court.");
+      console.error("Add court failed", error);
+      setMessage(
+        error?.response?.data?.message || error?.message || "Failed to add court."
+      );
     } finally {
       setSaving(false);
     }
@@ -114,17 +120,7 @@ export default function AddCourtForm({ onAdd, ownerId }) {
                 placeholder="25"
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Surface</label>
-              <input
-                type="text"
-                name="surface"
-                value={courtData.surface}
-                onChange={handleChange}
-                className="form-control"
-                placeholder="Clay / Synthetic"
-              />
-            </div>
+            
           </div>
           <div className="mb-3">
             <label className="form-label">Description</label>
