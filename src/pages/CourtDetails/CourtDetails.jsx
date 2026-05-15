@@ -1,9 +1,84 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { getCourtById } from "../../features/courts/api/courtsApi";
+import { bookingService } from '../../features/bookings/api/bookingService';
+import { useAuth } from '../../context/AuthContext';
+import PaymentModal from '../../components/payment';
 import "./CourtDetails.css";
-//import payment from '../../components/payment/payment';
+
+// Fix leaflet marker icon bug in React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+});
+
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=1200&q=80";
+const CAIRO_CENTER = [30.0444, 31.2357];
+
+const PROMO_CODES = {
+  "PADEL10":  10,
+  "WELCOME20": 20,
+  "CAIRO15":  15,
+};
+
+function CourtMap({ locationText, courtName }) {
+  const [coords, setCoords] = useState(null);
+  const [mapError, setMapError] = useState(false);
+
+  useEffect(() => {
+    if (!locationText) return;
+    const query = encodeURIComponent(`${locationText}, Cairo, Egypt`);
+    fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.length > 0) {
+          setCoords([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+        } else {
+          setCoords(CAIRO_CENTER);
+        }
+      })
+      .catch(() => {
+        setCoords(CAIRO_CENTER);
+        setMapError(true);
+      });
+  }, [locationText]);
+
+  if (!coords) {
+    return (
+      <div className="cd-map-loading">
+        <div className="cd-spinner" />
+        <p>Loading map…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cd-map-wrapper">
+      {mapError && (
+        <p className="cd-map-note">⚠️ Exact location not found — showing Cairo center</p>
+      )}
+      <MapContainer
+        center={coords}
+        zoom={15}
+        style={{ height: "300px", width: "100%", borderRadius: "12px" }}
+        scrollWheelZoom={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <Marker position={coords}>
+          <Popup>{courtName}</Popup>
+        </Marker>
+      </MapContainer>
+    </div>
+  );
+}
 
 function Stars({ rating = 0, size = "md" }) {
   const filled = Math.round(rating);
@@ -54,12 +129,20 @@ function ReviewCard({ review }) {
 export default function CourtDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [court, setCourt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [showPayment, setShowPayment] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoError, setPromoError] = useState("");
+  const [promoSuccess, setPromoSuccess] = useState("");
+  const [discount, setDiscount] = useState(0);
 
   useEffect(() => {
     const fetchCourt = async () => {
@@ -81,10 +164,51 @@ export default function CourtDetails() {
     "15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00",
   ];
 
-  const handleBooking = () => {
+  const handleApplyPromo = () => {
+    const code = promoCode.trim().toUpperCase();
+    if (PROMO_CODES[code]) {
+      setDiscount(PROMO_CODES[code]);
+      setPromoSuccess(`✅ "${code}" applied — ${PROMO_CODES[code]}% off!`);
+      setPromoError("");
+    } else {
+      setPromoError("Invalid promo code. Try PADEL10, WELCOME20, or CAIRO15.");
+      setPromoSuccess("");
+      setDiscount(0);
+    }
+  };
+
+  const finalPrice = court
+    ? Math.round(court.pricePerHour * (1 - discount / 100))
+    : 0;
+
+  const handleBooking = async () => {
     if (!selectedDate || !selectedTime) return;
-    setBookingSuccess(true);
-    setTimeout(() => setBookingSuccess(false), 3000);
+    setBookingLoading(true);
+    setBookingError("");
+    try {
+      const startTime = new Date(`${selectedDate}T${selectedTime}:00`);
+      const endTime = new Date(`${selectedDate}T${selectedTime}:00`);
+      endTime.setHours(endTime.getHours() + 1);
+      await bookingService.createBooking({
+        courtId: id,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        totalPrice: finalPrice,
+        promoCode: promoCode || null,
+        discountPercent: discount,
+      });
+      setBookingSuccess(true);
+      setTimeout(() => setBookingSuccess(false), 3000);
+    } catch (err) {
+      setBookingError(err.response?.data?.message || "Booking failed. Please try again.");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayment(false);
+    handleBooking();
   };
 
   if (loading) return (
@@ -113,6 +237,21 @@ export default function CourtDetails() {
 
   return (
     <div className="cd-page">
+
+      {/* PAYMENT MODAL */}
+      {showPayment && (
+        <PaymentModal
+          amount={finalPrice}
+          courtName={court.name}
+          date={new Date(selectedDate).toLocaleDateString("en-EG", {
+            weekday: "short", day: "numeric", month: "short"
+          })}
+          time={`${selectedTime} – ${String(Number(selectedTime.split(":")[0]) + 1).padStart(2, "0")}:00`}
+          onSuccess={handlePaymentSuccess}
+          onClose={() => setShowPayment(false)}
+        />
+      )}
+
       {/* HERO */}
       <div className="cd-hero">
         <div className="cd-hero__image" style={{ backgroundImage: `url(${heroImage})` }}>
@@ -144,7 +283,6 @@ export default function CourtDetails() {
         <div className="cd-grid">
           {/* LEFT */}
           <div className="cd-left">
-            {/* Stats */}
             <div className="cd-stats">
               <div className="cd-stat">
                 <span className="cd-stat__icon">💰</span>
@@ -176,7 +314,6 @@ export default function CourtDetails() {
               </div>
             </div>
 
-            {/* About */}
             <div className="cd-section">
               <h2 className="cd-section__title">About this Court</h2>
               <p className="cd-section__text">
@@ -184,7 +321,6 @@ export default function CourtDetails() {
               </p>
             </div>
 
-            {/* Amenities */}
             <div className="cd-section">
               <h2 className="cd-section__title">Amenities</h2>
               <div className="cd-amenities">
@@ -192,7 +328,7 @@ export default function CourtDetails() {
               </div>
             </div>
 
-            {/* Location */}
+            {/* LOCATION + MAP */}
             <div className="cd-section">
               <h2 className="cd-section__title">Location</h2>
               <div className="cd-location-box">
@@ -202,9 +338,10 @@ export default function CourtDetails() {
                   <p className="cd-location-sub">Cairo, Egypt</p>
                 </div>
               </div>
+              <CourtMap locationText={court.location} courtName={court.name} />
             </div>
 
-            {/* Reviews */}
+            {/* REVIEWS */}
             <div className="cd-section">
               <h2 className="cd-section__title">
                 Reviews
@@ -259,6 +396,41 @@ export default function CourtDetails() {
                   ))}
                 </div>
 
+                {/* PROMO CODE */}
+                <label className="cd-label">Promo Code</label>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                  <input
+                    className="cd-input"
+                    placeholder="e.g. PADEL10"
+                    value={promoCode}
+                    onChange={(e) => {
+                      setPromoCode(e.target.value);
+                      setPromoError("");
+                      setPromoSuccess("");
+                      setDiscount(0);
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    style={{
+                      background: "#f97316", color: "#fff", border: "none",
+                      borderRadius: "10px", padding: "0 16px", fontWeight: "700",
+                      cursor: "pointer", whiteSpace: "nowrap", fontSize: "14px"
+                    }}
+                  >
+                    Apply
+                  </button>
+                </div>
+                {promoError && (
+                  <p style={{ color: "red", fontSize: "12px", marginBottom: "8px" }}>{promoError}</p>
+                )}
+                {promoSuccess && (
+                  <p style={{ color: "green", fontSize: "12px", marginBottom: "8px" }}>{promoSuccess}</p>
+                )}
+
+                {/* SUMMARY */}
                 {selectedDate && selectedTime && (
                   <div className="cd-summary">
                     <div className="cd-summary__row">
@@ -269,19 +441,38 @@ export default function CourtDetails() {
                       <span>Time</span>
                       <span>{selectedTime} – {String(Number(selectedTime.split(":")[0]) + 1).padStart(2, "0")}:00</span>
                     </div>
+                    {discount > 0 && (
+                      <div className="cd-summary__row">
+                        <span>Discount</span>
+                        <span style={{ color: "green" }}>-{discount}%</span>
+                      </div>
+                    )}
                     <div className="cd-summary__row cd-summary__row--total">
                       <span>Total</span>
-                      <span>{court.pricePerHour} EGP</span>
+                      <span>
+                        {discount > 0 && (
+                          <span style={{ textDecoration: "line-through", color: "#aaa", marginRight: "8px", fontSize: "13px" }}>
+                            {court.pricePerHour} EGP
+                          </span>
+                        )}
+                        {finalPrice} EGP
+                      </span>
                     </div>
                   </div>
                 )}
 
+                {bookingError && (
+                  <p style={{ color: "red", fontSize: "0.85rem", marginBottom: "8px" }}>
+                    {bookingError}
+                  </p>
+                )}
+
                 <button
                   className={`cd-book-btn ${!selectedDate || !selectedTime ? "cd-book-btn--disabled" : ""}`}
-                  onClick={handleBooking}
-                  disabled={!selectedDate || !selectedTime}
+                  onClick={() => setShowPayment(true)}
+                  disabled={!selectedDate || !selectedTime || bookingLoading}
                 >
-                  {bookingSuccess ? "✅ Booking Confirmed!" : "Book Now"}
+                  {bookingLoading ? "Booking..." : bookingSuccess ? "✅ Booking Confirmed!" : "Book Now"}
                 </button>
 
                 {(!selectedDate || !selectedTime) && (
