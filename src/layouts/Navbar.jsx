@@ -29,6 +29,9 @@ export default function Navbar() {
                 Owner Dashboard
               </Link>
             )}
+            <Link className="nav-link" to="/bookings">
+              My Bookings
+            </Link>
             <Link className="nav-link" to="/profile">
               Profile
             </Link>
@@ -50,4 +53,3 @@ export default function Navbar() {
     </nav>
   );
 }
-
