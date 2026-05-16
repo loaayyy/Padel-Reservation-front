@@ -6,9 +6,7 @@ const initialValues = {
   pricePerHour: "",
   description: "",
   imageUrl: "",
-  secondaryImages: [],
   imageFile: null,
-  secondaryFiles: [],
 };
 
 const fileToDataUrl = (file) =>
@@ -34,11 +32,6 @@ export default function AddCourtForm({ onAdd, ownerId }) {
     setCourtData((prev) => ({ ...prev, imageFile: file }));
   };
 
-  const handleSecondaryFilesChange = (event) => {
-    const files = Array.from(event.target.files || []);
-    setCourtData((prev) => ({ ...prev, secondaryFiles: files }));
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!courtData.name || !courtData.location || !courtData.pricePerHour) {
@@ -53,9 +46,6 @@ export default function AddCourtForm({ onAdd, ownerId }) {
       const imageUrl = courtData.imageFile
         ? await fileToDataUrl(courtData.imageFile)
         : courtData.imageUrl;
-      const secondaryImages = courtData.secondaryFiles.length > 0
-        ? await Promise.all(courtData.secondaryFiles.map(fileToDataUrl))
-        : courtData.secondaryImages;
 
       const payload = {
         name: courtData.name,
@@ -63,7 +53,6 @@ export default function AddCourtForm({ onAdd, ownerId }) {
         pricePerHour: Number(courtData.pricePerHour),
         description: courtData.description,
         imageUrl,
-        secondaryImages,
       };
 
       await onAdd(payload);
@@ -143,21 +132,6 @@ export default function AddCourtForm({ onAdd, ownerId }) {
             />
             {courtData.imageFile && (
               <small className="text-muted">Selected file: {courtData.imageFile.name}</small>
-            )}
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Secondary Images</label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleSecondaryFilesChange}
-              className="form-control"
-            />
-            {courtData.secondaryFiles.length > 0 && (
-              <small className="text-muted">
-                {courtData.secondaryFiles.length} file(s) selected
-              </small>
             )}
           </div>
           <button type="submit" className="btn btn-primary" disabled={saving}>
