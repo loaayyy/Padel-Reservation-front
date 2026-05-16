@@ -72,3 +72,4 @@ export async function getCourtReviews(courtId) {
   const response = await axios.get(`${API_BASE}/reviews/court/${courtId}`);
   return response.data.reviews ?? response.data;
 }
+

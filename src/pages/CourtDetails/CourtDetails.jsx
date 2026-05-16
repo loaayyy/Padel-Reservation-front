@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
@@ -7,6 +7,7 @@ import { getCourtById } from "../../features/courts/api/courtsApi";
 import { bookingService } from "../../features/bookings/api/bookingService";
 import { useAuth } from "../../context/AuthContext";
 import PaymentModal from "../../components/payment";
+import { submitReview } from "../../features/profile/api/profileApi";
 import "./CourtDetails.css";
 
 // Fix leaflet marker icon bug in React
@@ -107,6 +108,33 @@ function Stars({ rating = 0, size = "md" }) {
   );
 }
 
+// Interactive star picker for review form
+function StarPicker({ value, onChange }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div style={{ display: "flex", gap: 4, cursor: "pointer" }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span
+          key={n}
+          onClick={() => onChange(n)}
+          onMouseEnter={() => setHovered(n)}
+          onMouseLeave={() => setHovered(0)}
+          style={{
+            fontSize: 32,
+            color: n <= (hovered || value) ? "#f97316" : "#d1d5db",
+            transition: "color 0.12s, transform 0.1s",
+            transform: n <= (hovered || value) ? "scale(1.15)" : "scale(1)",
+            display: "inline-block",
+            userSelect: "none",
+          }}
+        >
+          ★
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function AmenityBadge({ icon, label }) {
   return (
     <div className="amenity-badge">
@@ -156,6 +184,121 @@ function ReviewCard({ review }) {
   );
 }
 
+// ── Inline Review Form Component ──────────────────────────────────────────────
+function ReviewForm({ courtId, onSuccess, onCancel }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!rating) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await submitReview({ courtId, rating, comment });
+      setDone(true);
+      setTimeout(() => {
+        onSuccess();
+      }, 1200);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Failed to submit review. Make sure you have a completed booking for this court.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="cd-review-form cd-review-form--success">
+        <div style={{ fontSize: 40 }}>✅</div>
+        <p style={{ fontWeight: 700, color: "#16a34a", margin: "8px 0 0" }}>
+          Review submitted — thank you!
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cd-review-form">
+      <h3 className="cd-review-form__title">Write a Review</h3>
+
+      <div className="cd-review-form__field">
+        <label className="cd-label">Your Rating *</label>
+        <StarPicker value={rating} onChange={setRating} />
+        {!rating && (
+          <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
+            Tap a star to rate
+          </p>
+        )}
+      </div>
+
+      <div className="cd-review-form__field">
+        <label className="cd-label">Comment (optional)</label>
+        <textarea
+          className="cd-input"
+          rows={3}
+          placeholder="How was the court? Tell other players…"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          style={{ resize: "none", fontFamily: "inherit" }}
+        />
+      </div>
+
+      {error && (
+        <p
+          style={{
+            color: "#dc2626",
+            fontSize: 13,
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: 8,
+            padding: "8px 12px",
+            marginBottom: 12,
+          }}
+        >
+          {error}
+        </p>
+      )}
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <button
+          className="cd-book-btn"
+          onClick={handleSubmit}
+          disabled={!rating || submitting}
+          style={{
+            flex: 1,
+            background: rating ? "#f97316" : "#e5e7eb",
+            color: rating ? "#fff" : "#9ca3af",
+            cursor: rating ? "pointer" : "not-allowed",
+          }}
+        >
+          {submitting ? "Submitting…" : "Submit Review"}
+        </button>
+        <button
+          onClick={onCancel}
+          style={{
+            padding: "12px 20px",
+            borderRadius: 12,
+            border: "1px solid #e5e7eb",
+            background: "transparent",
+            cursor: "pointer",
+            fontWeight: 600,
+            color: "#6b7280",
+            fontSize: 14,
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function CourtDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -173,21 +316,23 @@ export default function CourtDetails() {
   const [promoError, setPromoError] = useState("");
   const [promoSuccess, setPromoSuccess] = useState("");
   const [discount, setDiscount] = useState(0);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+
+  const fetchCourt = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getCourtById(id);
+      setCourt(data.court || data);
+    } catch (err) {
+      setError("Failed to load court");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    const fetchCourt = async () => {
-      try {
-        setLoading(true);
-        const data = await getCourtById(id);
-        setCourt(data.court || data);
-      } catch (err) {
-        setError("Failed to load court");
-      } finally {
-        setLoading(false);
-      }
-    };
     if (id) fetchCourt();
-  }, [id]);
+  }, [id, fetchCourt]);
 
   const timeSlots = [
     "08:00",
@@ -254,6 +399,12 @@ export default function CourtDetails() {
   const handlePaymentSuccess = () => {
     setShowPayment(false);
     handleBooking();
+  };
+
+  // After review submitted: hide form + reload court so new review appears
+  const handleReviewSuccess = () => {
+    setShowReviewForm(false);
+    fetchCourt();
   };
 
   if (loading)
@@ -417,17 +568,68 @@ export default function CourtDetails() {
               <CourtMap locationText={court.location} courtName={court.name} />
             </div>
 
-            {/* REVIEWS */}
+            {/* ── REVIEWS SECTION ────────────────────────────────────────── */}
             <div className="cd-section">
-              <h2 className="cd-section__title">
-                Reviews
-                {reviews.length > 0 && (
-                  <span className="cd-reviews-count">
-                    {reviews.length} review{reviews.length !== 1 ? "s" : ""}
-                  </span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 20,
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <h2 className="cd-section__title" style={{ margin: 0 }}>
+                  Reviews
+                  {reviews.length > 0 && (
+                    <span className="cd-reviews-count">
+                      {reviews.length} review{reviews.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </h2>
+
+                {/* Show "Write a Review" only to logged-in players, and only if form is hidden */}
+                {user && !showReviewForm && (
+                  <button
+                    onClick={() => setShowReviewForm(true)}
+                    style={{
+                      background: "#f97316",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 10,
+                      padding: "9px 20px",
+                      fontWeight: 700,
+                      fontSize: 14,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      transition: "background 0.15s",
+                      whiteSpace: "nowrap",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#ea580c")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "#f97316")
+                    }
+                  >
+                    ⭐ Write a Review
+                  </button>
                 )}
-              </h2>
-              {reviews.length === 0 ? (
+              </div>
+
+              {/* Inline review form */}
+              {showReviewForm && (
+                <ReviewForm
+                  courtId={id}
+                  onSuccess={handleReviewSuccess}
+                  onCancel={() => setShowReviewForm(false)}
+                />
+              )}
+
+              {reviews.length === 0 && !showReviewForm ? (
                 <div className="cd-no-reviews">
                   <span className="cd-no-reviews__icon">💬</span>
                   <p>No reviews yet. Be the first to review this court!</p>
