@@ -43,6 +43,28 @@ const getAuthHeaders = () => {
   }
 };
 
+const markPastBookingsCompleted = async (bookings) => {
+  if (!Array.isArray(bookings)) return;
+  const now = new Date();
+  for (const booking of bookings) {
+    const endTimeStr = booking.endTime || booking.end_time || booking.end;
+    if (!endTimeStr) continue;
+    const end = new Date(endTimeStr);
+    if (end < now && booking.status && booking.status.toLowerCase() !== 'completed') {
+      try {
+        await axios.put(
+          `${API_BASE_URL}/bookings/${booking._id}`,
+          { status: 'Completed' },
+          { headers: getAuthHeaders() }
+        );
+        booking.status = 'Completed';
+      } catch (e) {
+        console.warn('Failed to mark booking completed', booking._id, e?.message || e);
+      }
+    }
+  }
+};
+
 export const bookingService = {
 
   // =========================
@@ -59,7 +81,16 @@ export const bookingService = {
         }
       );
 
-      return response.data;
+      // Normalize result and mark past bookings completed when returning lists
+      let result = response.data;
+      let data = result;
+      if (result && result.data) data = result.data;
+      if (Array.isArray(data)) {
+        await markPastBookingsCompleted(data);
+        if (result && result.data) result.data = data;
+        else result = data;
+      }
+      return result;
 
     } catch (error) {
 
@@ -114,7 +145,16 @@ export const bookingService = {
         }
       );
 
-      return response.data;
+      // Normalize result and mark past bookings completed when returning lists
+      let result = response.data;
+      let data = result;
+      if (result && result.data) data = result.data;
+      if (Array.isArray(data)) {
+        await markPastBookingsCompleted(data);
+        if (result && result.data) result.data = data;
+        else result = data;
+      }
+      return result;
 
     } catch (error) {
 
@@ -139,7 +179,31 @@ export const bookingService = {
         }
       );
 
-      return response.data;
+      let result = response.data;
+      let booking = result;
+      if (result && result.booking) booking = result.booking;
+      const endTimeStr = booking?.endTime || booking?.end_time || booking?.end;
+      if (endTimeStr) {
+        const end = new Date(endTimeStr);
+        const now = new Date();
+        if (end < now && booking.status && booking.status.toLowerCase() !== 'completed') {
+          try {
+            await axios.put(
+              `${API_BASE_URL}/bookings/${booking._id}`,
+              { status: 'Completed' },
+              { headers: getAuthHeaders() }
+            );
+            booking.status = 'Completed';
+          } catch (e) {
+            console.warn('Failed to mark booking completed', booking._id, e?.message || e);
+          }
+        }
+      }
+
+      if (result && result.booking) result.booking = booking;
+      else result = booking;
+
+      return result;
 
     } catch (error) {
 

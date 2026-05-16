@@ -502,7 +502,7 @@
 
 .cd-time-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 .cd-time-btn {
@@ -527,6 +527,45 @@
   border-color: var(--orange) !important;
   color: white !important;
   box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
+}
+
+/* Timeslots grid used by RenderTimeslots component */
+.time-slots-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: minmax(40px, auto);
+  gap: 8px;
+}
+.time-slot {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--white);
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.time-slot.booked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.time-slot.selected {
+  background: var(--orange);
+  color: white;
+  border-color: var(--orange);
+}
+.time-slot.booked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.time-slot.selected {
+  background: var(--orange);
+  color: white;
+  border-color: var(--orange);
 }
 
 .cd-summary {

@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { getCourtById } from "../../features/courts/api/courtsApi";
 import { bookingService } from "../../features/bookings/api/bookingService";
+import { RenderTimeslots } from "../Booking/BookingComponents/RenderTimeslots.jsx";
 import { useAuth } from "../../context/AuthContext";
 import PaymentModal from "../../components/payment";
 import { submitReview } from "../../features/profile/api/profileApi";
@@ -306,8 +307,13 @@ export default function CourtDetails() {
   const [court, setCourt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [selectedTimes, setSelectedTimes] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
@@ -352,6 +358,86 @@ export default function CourtDetails() {
     "22:00",
   ];
 
+  const getTimeIndex = (time) => {
+    const m = time.match(/(\d+):(\d+)\s?(AM|PM)?/);
+    if (!m) return -1;
+    let hour = parseInt(m[1]);
+    const period = m[3];
+    if (period) {
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+    }
+    return hour;
+  };
+
+  const getSortedTimes = (times) => [...times].sort((a, b) => getTimeIndex(a) - getTimeIndex(b));
+
+  const fetchBookings = async (date) => {
+    try {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      let data = await bookingService.getBookingsByDate(dateStr, id);
+      if (data && data.data) data = data.data;
+      if (!Array.isArray(data)) data = [];
+      setBookings(data);
+    } catch (err) {
+      setBookings([]);
+    }
+  };
+
+  useEffect(() => {
+    if (id && selectedDate) fetchBookings(selectedDate);
+  }, [id, selectedDate]);
+
+  const isTimeBooked = (time) => {
+    const [hours, minutes, period] = time.match(/(\d+):(\d+)\s(AM|PM)/).slice(1);
+    let hour = parseInt(hours);
+    if (period === 'PM' && hour !== 12) hour += 12;
+    if (period === 'AM' && hour === 12) hour = 0;
+
+    const slotStart = new Date(selectedDate);
+    slotStart.setHours(hour, parseInt(minutes), 0, 0);
+    const slotEnd = new Date(slotStart);
+    slotEnd.setHours(slotStart.getHours() + 1);
+
+    return bookings.some((booking) => {
+      const startTimeStr = booking.startTime || booking.start_time || booking.start;
+      const endTimeStr = booking.endTime || booking.end_time || booking.end;
+      if (!startTimeStr || !endTimeStr) return false;
+      const bookingStart = new Date(startTimeStr);
+      const bookingEnd = new Date(endTimeStr);
+      return bookingStart < slotEnd && bookingEnd > slotStart;
+    });
+  };
+
+  const handleTimeSelect = (time) => {
+    if (isTimeBooked(time)) return;
+
+    setSelectedTimes((prevTimes) => {
+      const sortedTimes = getSortedTimes(prevTimes);
+      const timeIndex = getTimeIndex(time);
+      const currentStartIndex = sortedTimes.length ? getTimeIndex(sortedTimes[0]) : null;
+      const currentEndIndex = sortedTimes.length ? getTimeIndex(sortedTimes[sortedTimes.length - 1]) : null;
+
+      if (prevTimes.length === 0) return [time];
+
+      if (prevTimes.includes(time)) {
+        if (timeIndex === currentStartIndex) return sortedTimes.slice(1);
+        if (timeIndex === currentEndIndex) return sortedTimes.slice(0, -1);
+        return [time];
+      }
+
+      if (timeIndex === currentStartIndex - 1) return [time, ...sortedTimes];
+      if (timeIndex === currentEndIndex + 1) return [...sortedTimes, time];
+
+      return [time];
+    });
+
+    setBookingError('');
+  };
+
   const handleApplyPromo = () => {
     const code = promoCode.trim().toUpperCase();
     if (PROMO_CODES[code]) {
@@ -368,24 +454,46 @@ export default function CourtDetails() {
   const finalPrice = court
     ? Math.round(court.pricePerHour * (1 - discount / 100))
     : 0;
+  const totalPrice = finalPrice * Math.max(1, selectedTimes.length);
 
   const handleBooking = async () => {
-    if (!selectedDate || !selectedTime) return;
+    if (!selectedDate || selectedTimes.length === 0) {
+      setBookingError('Please select at least one time slot');
+      return;
+    }
     setBookingLoading(true);
     setBookingError("");
     try {
-      const startTime = new Date(`${selectedDate}T${selectedTime}:00`);
-      const endTime = new Date(`${selectedDate}T${selectedTime}:00`);
-      endTime.setHours(endTime.getHours() + 1);
+      const sorted = getSortedTimes(selectedTimes);
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
+
+      const [sH, sM, sP] = first.match(/(\d+):(\d+)\s(AM|PM)/).slice(1);
+      const [eH, eM, eP] = last.match(/(\d+):(\d+)\s(AM|PM)/).slice(1);
+
+      let startHour = parseInt(sH);
+      let endHour = parseInt(eH);
+      if (sP === 'PM' && startHour !== 12) startHour += 12;
+      if (sP === 'AM' && startHour === 12) startHour = 0;
+      if (eP === 'PM' && endHour !== 12) endHour += 12;
+      if (eP === 'AM' && endHour === 12) endHour = 0;
+
+      const startTime = new Date(selectedDate);
+      startTime.setHours(startHour, parseInt(sM), 0, 0);
+      const endTime = new Date(selectedDate);
+      endTime.setHours(endHour + 1, parseInt(eM), 0, 0);
+
       await bookingService.createBooking({
         courtId: id,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
-        totalPrice: finalPrice,
+        totalPrice: totalPrice,
         promoCode: promoCode || null,
         discountPercent: discount,
       });
+
       setBookingSuccess(true);
+      await fetchBookings(selectedDate);
       setTimeout(() => setBookingSuccess(false), 3000);
     } catch (err) {
       setBookingError(
@@ -445,14 +553,20 @@ export default function CourtDetails() {
       {/* PAYMENT MODAL */}
       {showPayment && (
         <PaymentModal
-          amount={finalPrice}
+          amount={totalPrice}
           courtName={court.name}
           date={new Date(selectedDate).toLocaleDateString("en-EG", {
             weekday: "short",
             day: "numeric",
             month: "short",
           })}
-          time={`${selectedTime} – ${String(Number(selectedTime.split(":")[0]) + 1).padStart(2, "0")}:00`}
+          time={
+            selectedTimes.length
+              ? `${getSortedTimes(selectedTimes)[0]} – ${String(
+                  Number(getSortedTimes(selectedTimes)[getSortedTimes(selectedTimes).length - 1].split(":")[0]) + 1,
+                ).padStart(2, "0")}:00`
+              : ""
+          }
           onSuccess={handlePaymentSuccess}
           onClose={() => setShowPayment(false)}
         />
@@ -661,25 +775,55 @@ export default function CourtDetails() {
 
               <div className="cd-booking-form">
                 <label className="cd-label">Select Date</label>
-                <input
-                  type="date"
-                  className="cd-input"
-                  value={selectedDate}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                />
+                <div className="date-selector" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="date-btn"
+                    onClick={() => {
+                      const today = new Date();
+                      today.setHours(0,0,0,0);
+                      const nd = new Date(selectedDate);
+                      nd.setDate(nd.getDate() - 1);
+                      nd.setHours(0,0,0,0);
+                      if (nd < today) return;
+                      setSelectedDate(nd);
+                      setSelectedTimes([]);
+                      fetchBookings(nd);
+                    }}
+                    style={{ padding: '6px 10px', borderRadius: 8 }}
+                  >
+                    ←
+                  </button>
+                  <span className="date-display" style={{ fontWeight: 700 }}>
+                    {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </span>
+                  <button
+                    type="button"
+                    className="date-btn"
+                    onClick={() => {
+                      const nd = new Date(selectedDate);
+                      nd.setDate(nd.getDate() + 1);
+                      nd.setHours(0,0,0,0);
+                      setSelectedDate(nd);
+                      setSelectedTimes([]);
+                      fetchBookings(nd);
+                    }}
+                    style={{ padding: '6px 10px', borderRadius: 8 }}
+                  >
+                    →
+                  </button>
+                </div>
 
                 <label className="cd-label">Select Time Slot</label>
                 <div className="cd-time-grid">
-                  {timeSlots.map((t) => (
-                    <button
-                      key={t}
-                      className={`cd-time-btn ${selectedTime === t ? "cd-time-btn--active" : ""}`}
-                      onClick={() => setSelectedTime(t)}
-                    >
-                      {t}
-                    </button>
-                  ))}
+                  <RenderTimeslots
+                    selectedTimes={selectedTimes}
+                    onTimeSelect={handleTimeSelect}
+                    bookings={bookings}
+                    selectedDate={selectedDate}
+                    startHour={0}
+                    endHour={23}
+                  />
                 </div>
 
                 {/* PROMO CODE */}
@@ -741,7 +885,7 @@ export default function CourtDetails() {
                 )}
 
                 {/* SUMMARY */}
-                {selectedDate && selectedTime && (
+                {selectedDate && selectedTimes.length > 0 && (
                   <div className="cd-summary">
                     <div className="cd-summary__row">
                       <span>Date</span>
@@ -756,12 +900,18 @@ export default function CourtDetails() {
                     <div className="cd-summary__row">
                       <span>Time</span>
                       <span>
-                        {selectedTime} –{" "}
+                        {getSortedTimes(selectedTimes)[0]} – {" "}
                         {String(
-                          Number(selectedTime.split(":")[0]) + 1,
+                          Number(
+                            getSortedTimes(selectedTimes)[getSortedTimes(selectedTimes).length - 1].split(":")[0],
+                          ) + 1,
                         ).padStart(2, "0")}
                         :00
                       </span>
+                    </div>
+                    <div className="cd-summary__row">
+                      <span>Hours</span>
+                      <span>{selectedTimes.length}</span>
                     </div>
                     {discount > 0 && (
                       <div className="cd-summary__row">
@@ -781,10 +931,10 @@ export default function CourtDetails() {
                               fontSize: "13px",
                             }}
                           >
-                            {court.pricePerHour} EGP
+                            {court.pricePerHour * selectedTimes.length} EGP
                           </span>
                         )}
-                        {finalPrice} EGP
+                        {totalPrice} EGP
                       </span>
                     </div>
                   </div>
@@ -803,18 +953,18 @@ export default function CourtDetails() {
                 )}
 
                 <button
-                  className={`cd-book-btn ${!selectedDate || !selectedTime ? "cd-book-btn--disabled" : ""}`}
+                  className={`cd-book-btn ${selectedTimes.length === 0 ? "cd-book-btn--disabled" : ""}`}
                   onClick={() => setShowPayment(true)}
-                  disabled={!selectedDate || !selectedTime || bookingLoading}
+                  disabled={selectedTimes.length === 0 || bookingLoading}
                 >
                   {bookingLoading
                     ? "Booking..."
                     : bookingSuccess
                       ? "✅ Booking Confirmed!"
-                      : "Book Now"}
+                      : `Book Now (${selectedTimes.length} hour${selectedTimes.length > 1 ? 's' : ''})`}
                 </button>
 
-                {(!selectedDate || !selectedTime) && (
+                {selectedTimes.length === 0 && (
                   <p className="cd-booking-hint">
                     Please select a date and time to continue
                   </p>
