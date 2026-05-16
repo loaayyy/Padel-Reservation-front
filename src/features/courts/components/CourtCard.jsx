@@ -1,11 +1,32 @@
 import React from "react";
+import useCourtAverageRating from "../hooks/useCourtAverageRating";
 
-export default function CourtCard({ court, onEdit, onDelete, onShowBookings }) {
+export default function CourtCard({ court, onEdit, onDelete, onShowBookings, onShowReviews }) {
   const courtId = court.id ?? court._id;
+  const { averageRating, reviewCount } = useCourtAverageRating(courtId);
+
+  const renderStars = (rating) => {
+    if (!rating) return null;
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    return (
+      <>
+        {"★".repeat(fullStars)}
+        {hasHalfStar ? "½" : ""}
+        {"☆".repeat(5 - fullStars - (hasHalfStar ? 1 : 0))}
+      </>
+    );
+  };
 
   const handleShowBookings = () => {
     if (onShowBookings) {
       onShowBookings(courtId);
+    }
+  };
+
+  const handleShowReviews = () => {
+    if (onShowReviews) {
+      onShowReviews(courtId);
     }
   };
 
@@ -25,6 +46,17 @@ export default function CourtCard({ court, onEdit, onDelete, onShowBookings }) {
         <p className="mb-2">
           <strong>Price:</strong> ${court.pricePerHour || 0}/hr
         </p>
+        {averageRating !== null && (
+          <p className="mb-2">
+            <strong>Rating:</strong>
+            <span className="text-warning ms-2">
+              {renderStars(averageRating)}
+            </span>
+            <span className="ms-2 text-muted">
+              {averageRating.toFixed(1)} ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+            </span>
+          </p>
+        )}
 
         <div className="d-flex gap-2 mb-3">
           <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => onEdit(court)}>
@@ -43,6 +75,13 @@ export default function CourtCard({ court, onEdit, onDelete, onShowBookings }) {
             onClick={handleShowBookings}
           >
             Show Bookings
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={handleShowReviews}
+          >
+            View Reviews
           </button>
         </div>
 

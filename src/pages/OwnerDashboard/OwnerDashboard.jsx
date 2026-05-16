@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CourtCard from "../../features/courts/components/CourtCard";
+import CourtReviewsModal from "../../features/courts/components/CourtReviewsModal";
 import useCourts from "../../features/courts/hooks/useCourts";
 import { bookingService } from "../../features/bookings/api/bookingService";
 import { useAuth } from "../../context/AuthContext";
@@ -58,6 +59,8 @@ export default function OwnerDashboard() {
   const [reservationsLoading, setReservationsLoading] = useState(false);
   const [reservationsError, setReservationsError] = useState(null);
   const [selectedCourtId, setSelectedCourtId] = useState(null);
+  const [reviewCourtId, setReviewCourtId] = useState(null);
+  const [reviewCourtName, setReviewCourtName] = useState("");
 
   const handleAddClick = () => {
     navigate("/owner/add-court");
@@ -82,6 +85,17 @@ export default function OwnerDashboard() {
 
   const handleShowBookings = (courtId) => {
     setSelectedCourtId(courtId);
+  };
+
+  const handleShowReviews = (courtId) => {
+    const court = courts.find(c => (c.id || c._id) === courtId);
+    setReviewCourtId(courtId);
+    setReviewCourtName(court?.name || "Court");
+  };
+
+  const handleCloseReviews = () => {
+    setReviewCourtId(null);
+    setReviewCourtName("");
   };
 
   const fetchReservations = async () => {
@@ -147,6 +161,7 @@ export default function OwnerDashboard() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onShowBookings={handleShowBookings}
+              onShowReviews={handleShowReviews}
             />
           ))}
         </div>
@@ -203,6 +218,14 @@ export default function OwnerDashboard() {
           })}
         </div>
       </div>
+
+      {reviewCourtId && (
+        <CourtReviewsModal 
+          courtId={reviewCourtId} 
+          courtName={reviewCourtName}
+          onClose={handleCloseReviews}
+        />
+      )}
     </div>
   );
 }

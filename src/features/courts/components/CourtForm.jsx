@@ -13,7 +13,6 @@ export default function CourtForm({ court, onSave, onCancel }) {
     name: "",
     location: "",
     pricePerHour: "",
-    surface: "",
     description: "",
     imageUrl: "",
     secondaryImages: [],
@@ -29,7 +28,6 @@ export default function CourtForm({ court, onSave, onCancel }) {
       name: court.name || "",
       location: court.location || "",
       pricePerHour: court.pricePerHour || "",
-      surface: court.surface || "",
       description: court.description || "",
       imageUrl: court.imageUrl || "",
       secondaryImages: Array.isArray(court.secondaryImages)
@@ -76,7 +74,6 @@ export default function CourtForm({ court, onSave, onCancel }) {
         name: courtData.name,
         location: courtData.location,
         pricePerHour: Number(courtData.pricePerHour),
-        surface: courtData.surface,
         description: courtData.description,
         imageUrl,
         secondaryImages,
@@ -121,28 +118,16 @@ export default function CourtForm({ court, onSave, onCancel }) {
               className="form-control"
             />
           </div>
-          <div className="mb-3 row">
-            <div className="col-md-6">
-              <label className="form-label">Price per hour</label>
-              <input
-                type="number"
-                min="0"
-                name="pricePerHour"
-                value={courtData.pricePerHour}
-                onChange={handleChange}
-                className="form-control"
-              />
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Surface</label>
-              <input
-                type="text"
-                name="surface"
-                value={courtData.surface}
-                onChange={handleChange}
-                className="form-control"
-              />
-            </div>
+          <div className="mb-3">
+            <label className="form-label">Price per hour</label>
+            <input
+              type="number"
+              min="0"
+              name="pricePerHour"
+              value={courtData.pricePerHour}
+              onChange={handleChange}
+              className="form-control"
+            />
           </div>
           <div className="mb-3">
             <label className="form-label">Description</label>
