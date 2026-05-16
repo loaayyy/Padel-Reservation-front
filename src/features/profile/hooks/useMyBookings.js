@@ -10,7 +10,7 @@ export default function useMyBookings() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getMyBookings(userId);
+      const data = await getMyBookings();
       setBookings(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load bookings.");
@@ -28,7 +28,7 @@ export default function useMyBookings() {
       await cancelBooking(bookingId);
       setBookings((prev) =>
         prev.map((b) =>
-          b._id === bookingId ? { ...b, status: "cancelled" } : b,
+          b._id === bookingId ? { ...b, status: "Cancelled" } : b,
         ),
       );
       return { success: true };

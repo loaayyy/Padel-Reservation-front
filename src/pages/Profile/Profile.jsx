@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Spinner, Alert } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import useProfile from "../../features/profile/hooks/useProfile";
@@ -11,22 +12,31 @@ import BookingHistoryCard from "../../features/profile/components/BookingHistory
 import ReviewModal from "../../features/profile/components/ReviewModal";
 import "./Profile.css";
 
+// ── Tab order: Profile Settings → Security → My Bookings ─────────────────────
 const TABS = [
-  { id: "bookings", label: "My Bookings", icon: "📅" },
-  { id: "profile", label: "Profile Settings", icon: "👤" },
+  { id: "settings", label: "Profile Settings", icon: "👤" },
   { id: "security", label: "Security", icon: "🔒" },
+  { id: "bookings", label: "My Bookings", icon: "📅" },
 ];
 
-const FILTER_OPTIONS = [
-  "all",
-  //"confirmed",
-  "UpComing",
-  "completed",
-  "cancelled",
+// ── Filters: no "Confirmed", statuses match DB enum exactly ──────────────────
+// DB values: 'Upcoming' | 'Completed' | 'Cancelled'
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "Upcoming", label: "Upcoming" },
+  { key: "Completed", label: "Completed" },
+  { key: "Cancelled", label: "Cancelled" },
 ];
 
 export default function Profile() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Read tab from URL ?tab=bookings — default is "settings"
+  const initialTab =
+    TABS.find((t) => t.id === searchParams.get("tab"))?.id ?? "settings";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   const {
     profile,
     loading: profileLoading,
@@ -35,17 +45,29 @@ export default function Profile() {
     saveProfile,
     changePassword,
   } = useProfile();
+
   const {
     bookings,
     loading: bookingsLoading,
     error: bookingsError,
     handleCancel,
     refetch,
-  } = useMyBookings(user._id);
+  } = useMyBookings();
 
-  const [activeTab, setActiveTab] = useState("bookings");
   const [filter, setFilter] = useState("all");
   const [reviewTarget, setReviewTarget] = useState(null);
+
+  // Keep URL in sync when tab changes (so navbar links work)
+  const switchTab = (id) => {
+    setActiveTab(id);
+    setSearchParams({ tab: id });
+  };
+
+  // React to external URL changes (e.g. user clicks "My Bookings" in navbar)
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && TABS.find((x) => x.id === t)) setActiveTab(t);
+  }, [searchParams]);
 
   const initials = (profile?.name || user?.name || "U")
     .split(" ")
@@ -54,26 +76,20 @@ export default function Profile() {
     .toUpperCase()
     .slice(0, 2);
 
+  // Filter bookings — DB status values are capitalised ('Upcoming' not 'upcoming')
   const filteredBookings =
-    filter === "all"
-      ? bookings
-      : bookings.filter((b) => b.status?.toLowerCase() === filter);
+    filter === "all" ? bookings : bookings.filter((b) => b.status === filter);
 
   const counts = {
     all: bookings.length,
-    confirmed: bookings.filter((b) => b.status?.toLowerCase() === "confirmed")
-      .length,
-    completed: bookings.filter((b) => b.status?.toLowerCase() === "completed")
-      .length,
-    cancelled: bookings.filter((b) => b.status?.toLowerCase() === "cancelled")
-      .length,
-    pending: bookings.filter((b) => b.status?.toLowerCase() === "pending")
-      .length,
+    Upcoming: bookings.filter((b) => b.status === "Upcoming").length,
+    Completed: bookings.filter((b) => b.status === "Completed").length,
+    Cancelled: bookings.filter((b) => b.status === "Cancelled").length,
   };
 
   return (
     <div className="profile-wrapper">
-      {/* ── Header Card ──────────────────────────────────── */}
+      {/* ── Header card ──────────────────────────────────────── */}
       <div className="profile-header-card">
         <div className="profile-avatar-circle">{initials}</div>
         <div className="profile-header-info">
@@ -88,20 +104,20 @@ export default function Profile() {
               {user?.role || "Player"}
             </span>
             <span className="meta-tag meta-tag--gray">
-              🎾 {counts.completed} session{counts.completed !== 1 ? "s" : ""}{" "}
+              🎾 {counts.Completed} session{counts.Completed !== 1 ? "s" : ""}{" "}
               played
             </span>
           </div>
         </div>
       </div>
 
-      {/* ── Tabs ─────────────────────────────────────────── */}
+      {/* ── Tabs ─────────────────────────────────────────────── */}
       <div className="profile-tabs">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             className={`profile-tab ${activeTab === tab.id ? "profile-tab--active" : ""}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => switchTab(tab.id)}
           >
             <span>{tab.icon}</span>
             {tab.label}
@@ -109,95 +125,10 @@ export default function Profile() {
         ))}
       </div>
 
-      {/* ── Tab Content ──────────────────────────────────── */}
+      {/* ── Tab content ──────────────────────────────────────── */}
       <div className="profile-content">
-        {/* ===== BOOKINGS TAB ===== */}
-        {activeTab === "bookings" && (
-          <>
-            {/* Summary stat pills */}
-            <div className="booking-stats-row">
-              {[
-                { label: "Total", value: counts.all, color: "#0F0F0F" },
-                {
-                  label: "Confirmed",
-                  value: counts.confirmed,
-                  color: "#2A6018",
-                },
-                {
-                  label: "Completed",
-                  value: counts.completed,
-                  color: "#1A3D8C",
-                },
-                {
-                  label: "Cancelled",
-                  value: counts.cancelled,
-                  color: "#8C1F1F",
-                },
-              ].map((s) => (
-                <div className="stat-pill" key={s.label}>
-                  <span className="stat-pill__num" style={{ color: s.color }}>
-                    {s.value}
-                  </span>
-                  <span className="stat-pill__label">{s.label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Filter bar */}
-            <div className="booking-filter-bar">
-              {FILTER_OPTIONS.map((f) => (
-                <button
-                  key={f}
-                  className={`filter-btn ${filter === f ? "filter-btn--active" : ""}`}
-                  onClick={() => setFilter(f)}
-                >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
-                  {counts[f] !== undefined && counts[f] > 0 && (
-                    <span className="filter-count">{counts[f]}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {bookingsLoading ? (
-              <div className="loading-center">
-                <Spinner animation="border" style={{ color: "#E07B00" }} />
-                <p>Loading your bookings…</p>
-              </div>
-            ) : bookingsError ? (
-              <Alert variant="danger">{bookingsError}</Alert>
-            ) : filteredBookings.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state__icon">📅</div>
-                <h4>No {filter !== "all" ? filter : ""} bookings yet</h4>
-                <p>
-                  {filter === "all"
-                    ? "Head to the Explore page to book your first padel session!"
-                    : `No ${filter} bookings to show.`}
-                </p>
-                {filter === "all" && (
-                  <a href="/explore" className="empty-cta">
-                    Browse Courts →
-                  </a>
-                )}
-              </div>
-            ) : (
-              <div>
-                {filteredBookings.map((booking) => (
-                  <BookingHistoryCard
-                    key={booking._id}
-                    booking={booking}
-                    onCancel={handleCancel}
-                    onReview={(b) => setReviewTarget(b)}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ===== PROFILE SETTINGS TAB ===== */}
-        {activeTab === "profile" && (
+        {/* ===== PROFILE SETTINGS ===== */}
+        {activeTab === "settings" && (
           <div className="settings-card">
             <h3 className="settings-card__title">Personal Information</h3>
             <p className="settings-card__subtitle">
@@ -220,7 +151,7 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ===== SECURITY TAB ===== */}
+        {/* ===== SECURITY ===== */}
         {activeTab === "security" && (
           <div className="settings-card">
             <h3 className="settings-card__title">Change Password</h3>
@@ -234,9 +165,92 @@ export default function Profile() {
             />
           </div>
         )}
+
+        {/* ===== MY BOOKINGS ===== */}
+        {activeTab === "bookings" && (
+          <>
+            {/* Stats: Total · Upcoming · Completed · Cancelled (no Confirmed) */}
+            <div className="booking-stats-row">
+              {[
+                { label: "Total", value: counts.all, color: "#0F0F0F" },
+                { label: "Upcoming", value: counts.Upcoming, color: "#B86200" },
+                {
+                  label: "Completed",
+                  value: counts.Completed,
+                  color: "#1A3D8C",
+                },
+                {
+                  label: "Cancelled",
+                  value: counts.Cancelled,
+                  color: "#8C1F1F",
+                },
+              ].map((s) => (
+                <div className="stat-pill" key={s.label}>
+                  <span className="stat-pill__num" style={{ color: s.color }}>
+                    {s.value}
+                  </span>
+                  <span className="stat-pill__label">{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Filter buttons */}
+            <div className="booking-filter-bar">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  className={`filter-btn ${filter === f.key ? "filter-btn--active" : ""}`}
+                  onClick={() => setFilter(f.key)}
+                >
+                  {f.label}
+                  {f.key !== "all" && counts[f.key] > 0 && (
+                    <span className="filter-count">{counts[f.key]}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {bookingsLoading ? (
+              <div className="loading-center">
+                <Spinner animation="border" style={{ color: "#E07B00" }} />
+                <p>Loading your bookings…</p>
+              </div>
+            ) : bookingsError ? (
+              <Alert variant="danger">{bookingsError}</Alert>
+            ) : filteredBookings.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state__icon">📅</div>
+                <h4>
+                  No {filter !== "all" ? filter.toLowerCase() : ""} bookings yet
+                </h4>
+                <p>
+                  {filter === "all"
+                    ? "Head to the Explore page to book your first padel session!"
+                    : `No ${filter.toLowerCase()} bookings to show.`}
+                </p>
+                {filter === "all" && (
+                  <a href="/explore" className="empty-cta">
+                    Browse Courts →
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div>
+                {filteredBookings.map((booking) => (
+                  <BookingHistoryCard
+                    key={booking._id}
+                    booking={booking}
+                    onCancel={handleCancel}
+                    onReview={(b) => setReviewTarget(b)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* ── Review Modal ─────────────────────────────────── */}
+      {/* ── Review Modal ─────────────────────────────────────── */}
       <ReviewModal
         show={!!reviewTarget}
         onHide={() => setReviewTarget(null)}

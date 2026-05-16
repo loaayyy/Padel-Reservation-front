@@ -30,12 +30,12 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Profile Settings → /profile?tab=settings */}
+            {/* Profile → goes directly to Profile Settings tab */}
             <Link className="nav-link" to="/profile?tab=settings">
               Profile
             </Link>
 
-            {/* My Bookings → /profile?tab=bookings */}
+            {/* My Bookings → goes directly to My Bookings tab */}
             <Link className="nav-link" to="/profile?tab=bookings">
               My Bookings
             </Link>

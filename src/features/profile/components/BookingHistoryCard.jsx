@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { Badge, Spinner } from "react-bootstrap";
+import { Spinner } from "react-bootstrap";
 import StarRating from "./StarRating";
 
+// DB status values are capitalised: 'Upcoming' | 'Completed' | 'Cancelled'
 const STATUS_CONFIG = {
-  confirmed: { bg: "#E8F5E2", color: "#2A6018", label: "Confirmed" },
-  pending: { bg: "#FFF3E0", color: "#B86200", label: "Pending" },
-  cancelled: { bg: "#FEE8E8", color: "#8C1F1F", label: "Cancelled" },
+  upcoming: { bg: "#FFF3E0", color: "#B86200", label: "Upcoming" },
   completed: { bg: "#E5F0FF", color: "#1A3D8C", label: "Completed" },
+  cancelled: { bg: "#FEE8E8", color: "#8C1F1F", label: "Cancelled" },
 };
 
 function formatDateTime(iso) {
@@ -25,7 +25,7 @@ function formatDateTime(iso) {
 }
 
 function StatusBadge({ status }) {
-  const cfg = STATUS_CONFIG[status?.toLowerCase()] || STATUS_CONFIG.pending;
+  const cfg = STATUS_CONFIG[status?.toLowerCase()] || STATUS_CONFIG.upcoming;
   return (
     <span
       style={{
@@ -46,9 +46,9 @@ export default function BookingHistoryCard({ booking, onCancel, onReview }) {
   const [cancelling, setCancelling] = useState(false);
 
   const court = booking.court || {};
-  const status = booking.status?.toLowerCase();
+  const status = booking.status?.toLowerCase(); // lowercase for comparison
   const isCompleted = status === "completed";
-  const isCancellable = status === "confirmed" || status === "pending";
+  const isUpcoming = status === "upcoming";
   const hasReview = !!booking.reviewed;
 
   const handleCancel = async () => {
@@ -74,8 +74,8 @@ export default function BookingHistoryCard({ booking, onCancel, onReview }) {
       }
       onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
     >
+      {/* Top row: court info + status badge */}
       <div className="d-flex align-items-start justify-content-between flex-wrap gap-2">
-        {/* Left: court info */}
         <div className="d-flex align-items-center gap-3">
           <div
             style={{
@@ -111,8 +111,6 @@ export default function BookingHistoryCard({ booking, onCancel, onReview }) {
             )}
           </div>
         </div>
-
-        {/* Right: status */}
         <StatusBadge status={booking.status} />
       </div>
 
@@ -140,53 +138,55 @@ export default function BookingHistoryCard({ booking, onCancel, onReview }) {
       </div>
 
       {/* Actions */}
-      {(isCancellable || (isCompleted && !hasReview)) && (
-        <div className="d-flex gap-2 mt-3 flex-wrap">
-          {isCancellable && (
-            <button
-              onClick={handleCancel}
-              disabled={cancelling}
-              style={{
-                background: "transparent",
-                border: "1px solid #DDD9D2",
-                borderRadius: 8,
-                padding: "6px 16px",
-                fontSize: 13,
-                fontWeight: 500,
-                color: "#5A5752",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              {cancelling ? (
-                <Spinner animation="border" size="sm" />
-              ) : (
-                "Cancel Booking"
-              )}
-            </button>
-          )}
-          {isCompleted && !hasReview && (
-            <button
-              onClick={() => onReview(booking)}
-              style={{
-                background: "#E07B00",
-                border: "none",
-                borderRadius: 8,
-                padding: "6px 16px",
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#fff",
-                cursor: "pointer",
-              }}
-            >
-              ⭐ Leave a Review
-            </button>
-          )}
-        </div>
-      )}
+      <div className="d-flex gap-2 mt-3 flex-wrap">
+        {/* Cancel — only for Upcoming bookings */}
+        {isUpcoming && (
+          <button
+            onClick={handleCancel}
+            disabled={cancelling}
+            style={{
+              background: "transparent",
+              border: "1px solid #DDD9D2",
+              borderRadius: 8,
+              padding: "6px 16px",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#5A5752",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {cancelling ? (
+              <Spinner animation="border" size="sm" />
+            ) : (
+              "Cancel Booking"
+            )}
+          </button>
+        )}
 
+        {/* Review — only for Completed bookings that haven't been reviewed */}
+        {isCompleted && !hasReview && (
+          <button
+            onClick={() => onReview(booking)}
+            style={{
+              background: "#E07B00",
+              border: "none",
+              borderRadius: 8,
+              padding: "6px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            ⭐ Leave a Review
+          </button>
+        )}
+      </div>
+
+      {/* Already reviewed confirmation */}
       {isCompleted && hasReview && (
         <p style={{ fontSize: 12, color: "#999690", marginTop: 10 }}>
           ✅ You reviewed this booking
